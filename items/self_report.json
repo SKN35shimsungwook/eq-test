@@ -1,0 +1,5 @@
+[
+  {"id": "sr-reg-1", "domain": "reg", "text": "화가 나도 비교적 금방 마음을 가라앉힐 수 있다."},
+  {"id": "sr-reg-2", "domain": "reg", "text": "한번 기분이 상하면 하루 종일 그 기분에 끌려다닌다.", "reverse": true},
+  {"id": "sr-check-1", "text": "나는 살면서 한 번도 다른 사람에게 짜증을 낸 적이 없다.", "check": true}
+]

@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#0F766E"
+font = "sans-serif"
+
+[server]
+runOnSave = true

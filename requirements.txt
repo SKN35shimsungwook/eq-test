@@ -1,0 +1,7 @@
+# Streamlit Community Cloud가 이 파일로 설치합니다 (Python 3.12~3.13 권장)
+streamlit>=1.62,<2      # Custom Components v2, st.space, 가로 컨테이너 사용
+sqlalchemy>=2.0,<3
+psycopg2-binary>=2.9    # Supabase(Postgres) 연결
+pandas>=2.2
+numpy>=2.0
+altair>=5.4
