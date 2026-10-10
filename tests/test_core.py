@@ -149,8 +149,10 @@ def test_self_item_reverse_and_checks():
     assert rev.score(5) == 1 and rev.score(2) == 4
     assert SelfItem.from_dict({"id": "sr-check-9", "text": "t", "check": True}).validate() == []
     assert SelfItem.from_dict({"id": "sr-check-9", "text": "t", "check": True, "domain": "rel"}).validate()
-    strict = validate_self_items(load_self_items(), strict=True)
-    assert any("필요 4개" in e for e in strict)
+    # 자기평가는 영역당 4문항(역문항 1개 이상) + 점검 4문항으로 완성됨
+    assert validate_self_items(load_self_items(), strict=True) == []
+    thin = [it for it in load_self_items() if it.id != "sr-ctx-3"]
+    assert any("sr-ctx" in e for e in validate_self_items(thin, strict=True))
 
 
 # ---------------------------------------------------------------- DB

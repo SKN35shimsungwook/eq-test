@@ -1,5 +1,41 @@
 [
+  {"id": "sr-per-1", "domain": "per", "text": "대화 중에 상대의 기분이 바뀌면 금방 알아차린다."},
+  {"id": "sr-per-2", "domain": "per", "text": "표정만 보고도 그 사람이 어떤 기분인지 대체로 짐작할 수 있다."},
+  {"id": "sr-per-3", "domain": "per", "text": "다른 사람이 화가 나 있었다는 걸 한참 뒤에야 알게 되는 경우가 많다.", "reverse": true},
+  {"id": "sr-per-4", "domain": "per", "text": "지금 내 기분이 어떤 상태인지 스스로 잘 알아차린다."},
+
+  {"id": "sr-und-1", "domain": "und", "text": "내가 왜 이런 기분이 드는지 설명할 수 있다."},
+  {"id": "sr-und-2", "domain": "und", "text": "일이 어떻게 흘러가면 사람들 기분이 어떻게 바뀔지 예상할 수 있다."},
+  {"id": "sr-und-3", "domain": "und", "text": "여러 감정이 뒤섞이면 내 마음이 정확히 어떤지 모르겠다.", "reverse": true},
+  {"id": "sr-und-4", "domain": "und", "text": "서운함과 화처럼 비슷한 감정을 구분해서 말할 수 있다."},
+
+  {"id": "sr-use-1", "domain": "use", "text": "중요한 일을 하기 전에 그 일에 맞는 기분을 만들려고 한다."},
+  {"id": "sr-use-2", "domain": "use", "text": "기분이 들떠 있을 때와 차분할 때 잘되는 일이 다르다는 걸 안다."},
+  {"id": "sr-use-3", "domain": "use", "text": "기분이 내 판단에 영향을 준다는 걸 거의 의식하지 않는다.", "reverse": true},
+  {"id": "sr-use-4", "domain": "use", "text": "속상한 마음을 무언가를 해내는 힘으로 바꾼 적이 많다."},
+
   {"id": "sr-reg-1", "domain": "reg", "text": "화가 나도 비교적 금방 마음을 가라앉힐 수 있다."},
   {"id": "sr-reg-2", "domain": "reg", "text": "한번 기분이 상하면 하루 종일 그 기분에 끌려다닌다.", "reverse": true},
-  {"id": "sr-check-1", "text": "나는 살면서 한 번도 다른 사람에게 짜증을 낸 적이 없다.", "check": true}
+  {"id": "sr-reg-3", "domain": "reg", "text": "스트레스가 쌓여도 나름의 방법으로 풀어낸다."},
+  {"id": "sr-reg-4", "domain": "reg", "text": "실패한 뒤에도 비교적 빨리 다시 일어선다."},
+
+  {"id": "sr-rel-1", "domain": "rel", "text": "힘들어하는 사람에게 어떤 말을 해야 할지 대체로 안다."},
+  {"id": "sr-rel-2", "domain": "rel", "text": "갈등이 생겨도 관계를 망치지 않고 이야기를 나눌 수 있다."},
+  {"id": "sr-rel-3", "domain": "rel", "text": "부탁을 거절하기가 너무 어려워 원하지 않는 일도 떠맡곤 한다.", "reverse": true},
+  {"id": "sr-rel-4", "domain": "rel", "text": "의견이 달라도 상대 입장에서 생각해 보려고 노력한다."},
+
+  {"id": "sr-cri-1", "domain": "cri", "text": "갑자기 일이 터져도 당황하지 않고 먼저 할 일을 찾는다."},
+  {"id": "sr-cri-2", "domain": "cri", "text": "급박한 상황이 되면 머리가 하얘져 아무것도 하지 못한다.", "reverse": true},
+  {"id": "sr-cri-3", "domain": "cri", "text": "흥분한 사람을 진정시키는 데 자신이 있다."},
+  {"id": "sr-cri-4", "domain": "cri", "text": "여러 사람이 지켜보는 압박 속에서도 판단을 잘 내린다."},
+
+  {"id": "sr-ctx-1", "domain": "ctx", "text": "상대가 돌려 말해도 진짜 하고 싶은 말을 알아챈다."},
+  {"id": "sr-ctx-2", "domain": "ctx", "text": "처음 간 모임에서도 분위기를 금방 파악한다."},
+  {"id": "sr-ctx-3", "domain": "ctx", "text": "농담인지 진담인지 헷갈려서 곤란했던 적이 많다.", "reverse": true},
+  {"id": "sr-ctx-4", "domain": "ctx", "text": "말하지 않아도 지켜야 할 분위기나 규칙을 잘 눈치챈다."},
+
+  {"id": "sr-check-1", "text": "나는 살면서 한 번도 다른 사람에게 짜증을 낸 적이 없다.", "check": true},
+  {"id": "sr-check-2", "text": "나는 누구에게도 질투를 느껴 본 적이 없다.", "check": true},
+  {"id": "sr-check-3", "text": "나는 어떤 상황에서도 다른 사람의 기분을 항상 정확히 알아맞힌다.", "check": true},
+  {"id": "sr-check-4", "text": "나는 화가 나서 후회할 말을 한 적이 한 번도 없다.", "check": true}
 ]
