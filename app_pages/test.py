@@ -6,8 +6,9 @@ import streamlit as st
 from core import components as ui
 from core import db
 from core import exam as ex
+from core import validity as vd
 from core.item_bank import IMAGES_DIR, build_form
-from core.runtime import get_engine, get_items, get_self_items, save_progress
+from core.runtime import get_engine, get_final_items, get_items, get_self_items, save_progress
 from core.schema import (BLUEPRINT, DEEP_MAX_ITEMS, DEEP_MIN_ITEMS, DEEP_ROUND, MODE_LABELS, SELF_SCALE, Domain,
                          ItemFormat, round_label)
 
@@ -17,6 +18,7 @@ INTROS = {
     Domain.USE: "일에 맞는 기분, 기분이 판단에 주는 영향, 감정을 행동의 힘으로 쓰는 방법을 묻는 문제입니다.",
     Domain.REG: "내 감정이 크게 흔들리는 상황에서 가장 효과적으로 다스리는 방법을 고르는 문제입니다.",
     Domain.REL: "다른 사람을 위로하고, 갈등을 풀고, 어려운 말을 전하고, 선을 지키는 방법을 고르는 문제입니다.",
+    Domain.CON: "새 환경 적응, 배신, 소외, 가족·연애 갈등처럼 관계가 흔들리는 상황에서 알맞은 해결 방법을 고르는 문제입니다.",
     Domain.CRI: "갑작스러운 위기 상황에서 순간적으로 판단하는 문제입니다. **문항마다 짧은 제한시간**이 있고, "
                 "시간이 끝나면 그때까지 고른 답으로 넘어갑니다. 앞 문제로 돌아갈 수 없습니다.",
     Domain.CTX: "말 속에 숨은 뜻, 그 자리의 분위기, 말하지 않은 규칙을 읽어 내는 문제입니다.",
@@ -51,6 +53,7 @@ if ss.get("exam") is None:
     else:
         ss.exam = ex.new_exam(build_form(list(items.values()), seed, mode, exclude=seen), mode)
     ss.exam["self_done"] = ss.round != 1  # 자기평가는 1차 검증 전에 한 번만
+    ss.exam["final_done"] = ss.round != 1  # 마지막 질문도 1차 검증 끝에 한 번만
     save_progress()
 exam = ss.exam
 
@@ -80,9 +83,45 @@ if not exam.get("self_done"):
                  "correct": False, "score": float(picked[it.id] if it.check else it.score(picked[it.id])),
                  "response_ms": None} for it in self_items])
             db.save_self_scores(get_engine(), ss.session_id, scores)
+            exam["self_answers"] = picked  # 마지막 질문에서 같은 내용을 다시 물어 일관성을 본다
             exam["self_done"] = True
             save_progress()
             st.rerun()
+    st.stop()
+
+# ---------------------------------------------------------------- 마지막 질문 (1차 끝에 한 번)
+
+if exam["d"] >= len(exam["domains"]):
+    if exam.get("final_done", True):
+        ss.phase = "result"
+        st.switch_page("app_pages/result.py")
+    final_items = get_final_items()
+    order = random.Random(seed + 1).sample(final_items, len(final_items))
+    st.caption(f"{MODE_LABELS[mode]} · 마지막 질문")
+    st.subheader("마지막으로, 솔직하게 답해 주세요")
+    st.markdown("평소의 나에게 얼마나 해당하는지 골라 주세요. 정답은 없고 **EQ 점수에는 들어가지 않습니다.** "
+                "응답이 일관되고 솔직했는지 살펴 결과를 얼마나 믿고 읽을지 알려 드리는 데 씁니다.")
+    with st.form("final-check"):
+        picked = {}
+        for k, it in enumerate(order, 1):
+            picked[it.id] = st.radio(f"{k}. {it.text}", options=list(SELF_SCALE), format_func=SELF_SCALE.get,
+                                     horizontal=True, index=None, key=f"fc-{it.id}")
+        submitted = st.form_submit_button("결과 보기", type="primary", icon=":material/arrow_forward:")
+    if submitted:
+        missing = [k for k, it in enumerate(order, 1) if picked[it.id] is None]
+        if missing:
+            st.error(f"답하지 않은 문항이 있습니다: {', '.join(map(str, missing))}번")
+        else:
+            db.save_responses(get_engine(), ss.session_id, [
+                {"item_id": it.id, "item_version": it.version, "domain": "fc", "answer": str(picked[it.id]),
+                 "correct": False, "score": float(picked[it.id]), "response_ms": None} for it in final_items])
+            current = (db.load_session(get_engine(), ss.session_id) or {}).get("self_scores") or {}
+            extra = vd.final_scores(final_items, get_self_items(), picked, exam.get("self_answers") or {})
+            db.save_self_scores(get_engine(), ss.session_id, {**current, **extra})
+            exam["final_done"] = True
+            save_progress()
+            ss.phase = "result"
+            st.switch_page("app_pages/result.py")
     st.stop()
 
 deep = exam.get("kind") == "deep"
@@ -100,6 +139,8 @@ def close_domain() -> None:
     db.save_responses(get_engine(), ss.session_id, rows)
     finished = ex.finish_domain(exam, rows)
     save_progress()
+    if finished and not exam.get("final_done", True):
+        st.rerun()  # 마지막 질문으로
     if finished:
         ss.phase = "result"
         st.switch_page("app_pages/result.py")

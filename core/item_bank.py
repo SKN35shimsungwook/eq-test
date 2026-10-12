@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 from dataclasses import replace
 from pathlib import Path
 
-from core.schema import (BLUEPRINT, FIXED_SLOTS, IMAGE_SUBTYPES, MAX_SAME_TYPE, MIN_DOMAIN_POOL, MIN_FORMS_FIXED,
+from core.schema import (BLUEPRINT, FINAL_DESIRE, FINAL_REPEAT, FIXED_SLOTS, IMAGE_SUBTYPES, MAX_SAME_TYPE, MIN_DOMAIN_POOL, MIN_FORMS_FIXED,
                          MIN_FORMS_POOL, SELF_CHECKS, SELF_MIN_REVERSE, SELF_PER_DOMAIN, SLOTS, Domain, Item,
                          ItemFormat, Mode, SelfItem)
 
@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 ITEMS_DIR = ROOT / "items"
 IMAGES_DIR = ROOT / "assets" / "images"
 SELF_REPORT = "self_report.json"
+FINAL_CHECK = "final_check.json"  # 마지막 질문 (응답 신뢰도)
 CALIBRATION = "calibration.json"
 
 
@@ -67,7 +68,7 @@ def apply_calibration(items: list[Item], path: Path) -> list[Item]:
 def load_items(items_dir: Path = ITEMS_DIR) -> list[Item]:
     items: list[Item] = []
     for path in sorted(items_dir.glob("*.json")):
-        if path.name in (SELF_REPORT, CALIBRATION):
+        if path.name in (SELF_REPORT, FINAL_CHECK, CALIBRATION):
             continue
         items.extend(Item.from_dict(d) for d in json.loads(path.read_text(encoding="utf-8")))
     return apply_calibration(balance_answer_positions(items), items_dir / CALIBRATION)
@@ -78,6 +79,29 @@ def load_self_items(items_dir: Path = ITEMS_DIR) -> list[SelfItem]:
     if not path.exists():
         return []
     return [SelfItem.from_dict(d) for d in json.loads(path.read_text(encoding="utf-8"))]
+
+
+def load_final_items(items_dir: Path = ITEMS_DIR) -> list[SelfItem]:
+    path = items_dir / FINAL_CHECK
+    if not path.exists():
+        return []
+    return [SelfItem.from_dict(d) for d in json.loads(path.read_text(encoding="utf-8"))]
+
+
+def validate_final_items(items: list[SelfItem], self_items: list[SelfItem]) -> list[str]:
+    """마지막 질문: 욕구 4 + 다시 묻기 4, 다시 묻기는 짝이 실제 자기평가 영역 문항이어야."""
+    errors = [f"[{it.id}] {e}" for it in items for e in it.validate()]
+    if sum(it.kind == "desire" for it in items) != FINAL_DESIRE:
+        errors.append(f"[final] 욕구 문항 {FINAL_DESIRE}개 필요")
+    if sum(it.kind == "repeat" for it in items) != FINAL_REPEAT:
+        errors.append(f"[final] 다시 묻기 문항 {FINAL_REPEAT}개 필요")
+    by_id = {it.id: it for it in self_items}
+    for it in items:
+        if it.kind == "repeat" and (it.pair not in by_id or by_id[it.pair].domain is None):
+            errors.append(f"[{it.id}] 짝 문항 {it.pair} 없음")
+    if len({it.pair for it in items if it.pair}) != sum(bool(it.pair) for it in items):
+        errors.append("[final] 같은 문항을 두 번 다시 물음")
+    return errors
 
 
 def _norm(text: str) -> str:

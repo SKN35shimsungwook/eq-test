@@ -9,7 +9,7 @@ import streamlit as st
 from sqlalchemy.engine import Engine
 
 from core import db
-from core.item_bank import load_items, load_self_items
+from core.item_bank import load_final_items, load_items, load_self_items
 from core.schema import Item, Mode, SelfItem
 
 APP_VERSION = "0.1.0"
@@ -43,6 +43,11 @@ def get_items() -> list[Item]:
 @st.cache_data
 def get_self_items() -> list[SelfItem]:
     return load_self_items()
+
+
+@st.cache_data
+def get_final_items() -> list[SelfItem]:
+    return load_final_items()
 
 
 def init_state() -> None:

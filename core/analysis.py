@@ -23,7 +23,7 @@ SIM_VERSION = "sim"  # 시뮬레이션 데이터 표시
 
 
 def load_frames(engine: Engine, include_sim: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(세션, 응답) 데이터프레임. 응답에는 그 세션의 종합 θ가 붙는다. 자기평가 응답은 domain == "sr"."""
+    """(세션, 응답) 데이터프레임. 응답에는 그 세션의 종합 θ가 붙는다. 자기평가 "sr", 마지막 질문 "fc"."""
     with engine.connect() as conn:
         sessions = pd.DataFrame([dict(r._mapping) for r in conn.execute(sa.select(db.sessions))])
         responses = pd.DataFrame([dict(r._mapping) for r in conn.execute(sa.select(db.responses))])
@@ -49,7 +49,7 @@ def _p(item: Item, theta: np.ndarray) -> np.ndarray:
 
 
 def ability(responses: pd.DataFrame) -> pd.DataFrame:
-    return responses[responses["domain"] != "sr"] if not responses.empty else responses
+    return responses[~responses["domain"].isin(("sr", "fc"))] if not responses.empty else responses
 
 
 def consensus(item: Item, g: pd.DataFrame, top: float = 0.5) -> dict | None:
@@ -274,3 +274,19 @@ def self_ability_corr(sessions: pd.DataFrame) -> tuple[float, int]:
         return float("nan"), len(vals)
     arr = np.asarray(vals)
     return float(np.corrcoef(arr[:, 0], arr[:, 1])[0, 1]), len(vals)
+
+
+def validity_table(sessions: pd.DataFrame, items: dict[str, Item]) -> pd.DataFrame:
+    """1차를 마친 세션마다 응답 신뢰도 판정 (core.validity). 결과 화면과 같은 규칙."""
+    from core import validity as vd
+    rows = []
+    done = sessions[sessions["completed"] & (sessions["round"] == 1)] if not sessions.empty else sessions
+    for _, s in done.iterrows():
+        prog = s["progress"] if isinstance(s["progress"], dict) else None
+        if not prog:
+            continue
+        v = vd.assess(s["self_scores"] if isinstance(s["self_scores"], dict) else None, session_rows(prog, items), items)
+        rows.append({"세션": s["id"], "모드": s["mode"], "판정": v.level, "이유": " / ".join(v.reasons),
+                     "욕구 부정(0~8)": v.metrics["deny"], "어긋난 짝": v.metrics.get("_incons"),
+                     "빠른 응답": v.metrics["fast"], "한 위치": v.metrics["position"]})
+    return pd.DataFrame(rows)

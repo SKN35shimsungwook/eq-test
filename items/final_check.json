@@ -1,0 +1,50 @@
+[
+ {
+  "id": "fc-des-1",
+  "kind": "desire",
+  "text": "아무도 모른다면 규칙을 살짝 어기고 싶다는 생각이 든 적이 한 번도 없다."
+ },
+ {
+  "id": "fc-des-2",
+  "kind": "desire",
+  "text": "남에게 인정받고 싶어서 무언가를 한 적이 한 번도 없다."
+ },
+ {
+  "id": "fc-des-3",
+  "kind": "desire",
+  "text": "싫어하는 사람이 곤란해졌을 때 속으로 고소하다고 느낀 적이 한 번도 없다."
+ },
+ {
+  "id": "fc-des-4",
+  "kind": "desire",
+  "text": "피곤해서 남의 부탁을 모른 척하고 싶었던 적이 한 번도 없다."
+ },
+ {
+  "id": "fc-rep-1",
+  "kind": "repeat",
+  "pair": "sr-reg-1",
+  "reverse": true,
+  "text": "화가 나면 마음을 가라앉히기까지 오래 걸리는 편이다."
+ },
+ {
+  "id": "fc-rep-2",
+  "kind": "repeat",
+  "pair": "sr-rel-1",
+  "reverse": true,
+  "text": "힘들어하는 사람 앞에서 무슨 말을 해야 할지 몰라 막막할 때가 많다."
+ },
+ {
+  "id": "fc-rep-3",
+  "kind": "repeat",
+  "pair": "sr-ctx-2",
+  "reverse": true,
+  "text": "처음 간 자리에서는 분위기를 읽기까지 시간이 꽤 걸린다."
+ },
+ {
+  "id": "fc-rep-4",
+  "kind": "repeat",
+  "pair": "sr-cri-2",
+  "reverse": false,
+  "text": "급한 상황에서도 머리가 비교적 잘 돌아가는 편이다."
+ }
+]

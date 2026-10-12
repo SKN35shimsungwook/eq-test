@@ -218,6 +218,20 @@ with self_tab:
         st.dataframe(checks, hide_index=True, column_config={
             "그렇다 비율": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1)})
         st.caption("거의 아무도 '그렇다'일 수 없는 진술입니다. 두 개 이상에 4~5점으로 답하면 결과에 '자기평가가 좋게 기울었을 수 있음'을 표시합니다.")
+    st.markdown("**응답 신뢰도** (1차 완료 세션, 결과 화면과 같은 판정)")
+    vt = an.validity_table(sessions, {it.id: it for it in get_items()})
+    if vt.empty:
+        st.info("1차를 마친 세션이 아직 없습니다.")
+    else:
+        cnt = vt["판정"].value_counts()
+        cols = st.columns(3)
+        for col, lv in zip(cols, ("높음", "보통", "낮음")):
+            col.metric(lv, f"{cnt.get(lv, 0) / len(vt):.0%}", f"{cnt.get(lv, 0)}명", delta_color="off", border=True)
+        st.caption("봇 검증(docs/10)에서 성실한 응답자는 높음 약 87~93%, 낮음 약 2%였습니다. 실제 '낮음'이 이보다 훨씬 많으면 "
+                   "문항이 헷갈리거나 기준이 너무 엄격하다는 뜻이니 core/validity.py 기준값을 다시 봅니다.")
+        st.dataframe(vt[vt["판정"] != "높음"].drop(columns=["세션"]), hide_index=True, column_config={
+            "빠른 응답": st.column_config.NumberColumn(format="percent"),
+            "한 위치": st.column_config.NumberColumn(format="percent")})
     r_sa, n_sa = an.self_ability_corr(sessions)
     st.metric("자기평가 ↔ 실제 EQ 상관", "–" if math.isnan(r_sa) else f"{r_sa:.2f}", f"{n_sa}명", delta_color="off",
               border=True, help="연구에서 자기보고와 능력형 EQ의 상관은 0.2 안팎으로 낮은 편입니다.")

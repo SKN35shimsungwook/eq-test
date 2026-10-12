@@ -343,6 +343,8 @@ SELF_SCALE = {1: "전혀 아니다", 2: "아니다", 3: "보통이다", 4: "그�
 SELF_PER_DOMAIN = 4   # 영역당 자기보고 문항
 SELF_MIN_REVERSE = 1  # 영역당 최소 역문항 (모두 "그렇다"로 답하는 습관 방지)
 SELF_CHECKS = 4       # 지나치게 좋게만 답하는지 보는 점검 문항
+FINAL_DESIRE = 4      # 마지막 질문: 누구나 있는 욕구를 부정하는지 (좋게 보이려는 경향)
+FINAL_REPEAT = 4      # 마지막 질문: 시작 자기평가 문항을 반대로 바꿔 다시 묻기 (일관성)
 
 
 @dataclass
@@ -353,6 +355,8 @@ class SelfItem:
     domain: Domain | None = None  # 점검 문항은 None
     reverse: bool = False    # 역문항: 점수 = 6 − 응답
     check: bool = False      # 점검 문항: 거의 아무도 "매우 그렇다"일 수 없는 진술 (예: 한 번도 짜증 낸 적이 없다)
+    kind: str = ""           # 마지막 질문만: "desire"(욕구 부정) | "repeat"(시작 자기평가 다시 묻기)
+    pair: str | None = None  # repeat: 짝이 되는 시작 자기평가 문항 ID
     version: int = 1
 
     @classmethod
@@ -369,10 +373,14 @@ class SelfItem:
         errors = []
         if not self.text.strip():
             errors.append("text 비어 있음")
-        if self.check and self.domain is not None:
-            errors.append("점검 문항은 domain 없음")
-        if not self.check and self.domain is None:
+        if self.kind not in ("", "desire", "repeat"):
+            errors.append(f"kind 오류: {self.kind}")
+        if (self.check or self.kind) and self.domain is not None:
+            errors.append("점검·마지막 질문은 domain 없음")
+        if not (self.check or self.kind) and self.domain is None:
             errors.append("domain 필요")
-        if self.check and self.reverse:
-            errors.append("점검 문항은 역문항이 아님")
+        if (self.check or self.kind == "desire") and self.reverse:
+            errors.append("점검·욕구 문항은 역문항이 아님")
+        if (self.kind == "repeat") != bool(self.pair):
+            errors.append("repeat 문항에만 pair 필요")
         return errors

@@ -9,6 +9,7 @@ from core import exam as ex
 from core import report as rp
 from core import scoring as sc
 from core import style as sty
+from core import validity as vd
 from core.runtime import APP_VERSION, get_engine, get_items
 from core.schema import (BLUEPRINT, DEEP_MAX_ITEMS, DEEP_MIN_ITEMS, DEEP_ROUND, DEEP_TARGET_SE, DIFFICULTY_LABELS,
                          MAX_ROUNDS, MODE_LABELS, Domain, ItemFormat, Mode, round_label)
@@ -50,6 +51,7 @@ final_stage = rp.stage(sum(not rd.deep for rd in rounds), any(rd.deep for rd in 
 final = rp.report(all_rows, items, norm, stage=final_stage)
 reports = {rd.round: rp.report(rd.rows, items, norm, rd, stage=None if rd.deep else "1") for rd in rounds}
 self_scores = next((r["self_scores"] for r in series if r["round"] == 1 and r.get("self_scores")), None)
+validity = vd.assess(self_scores, all_rows, items)
 
 
 def pct_text(pct: float) -> str:
@@ -150,18 +152,25 @@ def tips_section(rep: rp.RoundReport) -> None:
 
 
 def style_section() -> None:
-    """선택 유형: 무엇을 골랐는지로 본 영역별 유형과 종합 프로필 (점수와 별개)."""
+    """선택 유형: 단서를 놓쳤을 때 기우는 방향으로 본 영역별 유형과 종합 프로필 (점수와 별개)."""
     prof = sty.profile(all_rows, items)
     if not prof.domains:
         return
     st.markdown("**나의 정서 유형**")
     with st.container(border=True):
         st.markdown(f"### {prof.name}")
-        st.caption(f"정답 여부와 별개로, 문제마다 어떤 방식을 골랐는지 {sum(d.n for d in prof.domains)}번의 선택을 모아 정한 유형입니다. "
-                   "정해진 몇 가지 칸이 아니라, 세 가지 축의 기울기와 가장 많이 고른 방식을 조합한 이름입니다.")
+        if prof.name == "상황맞춤형":
+            st.caption("상황마다 알맞은 방법을 대부분 골라, 특정 방식으로 기우는 버릇이 드러나지 않았습니다.")
+        elif prof.name == "균형형":
+            st.caption("상황에 맞지 않는 보기를 고른 문제에서도 특정 방향으로 치우치지 않았습니다.")
+        st.caption(f"상황에 맞는 보기를 고른 문제는 '맞춤'으로 두고, 맞지 않는 보기를 고른 {prof.n_action_miss}문제에서 "
+                   "어느 쪽으로 기울었는지를 우연과 비교해 정한 유형입니다. 우연으로도 생길 만한 기울기는 이름에 넣지 않습니다.")
         st.altair_chart(charts.axes_chart([{"축": k, "왼쪽": neg, "오른쪽": pos, "값": prof.axes[k]}
                                            for k, pos, neg, *_ in sty.AXES]))
-        st.caption("막대는 가운데에서 어느 쪽으로 얼마나 기울었는지를 보여 줍니다 (감정을 다루는 영역 5개의 선택 기준).")
+        st.caption("막대는 가운데에서 어느 쪽으로 얼마나 기울었는지를 보여 줍니다 (감정을 다루는 영역 5개 기준). "
+                   "짧은 막대는 우연일 수 있습니다.")
+        if validity.low:
+            st.caption(":material/warning: 응답 신뢰도가 낮아 이 유형은 참고로만 보세요.")
         if prof.reading:
             st.markdown(f":material/visibility: {prof.reading}")
         for a in prof.advice:
@@ -172,7 +181,8 @@ def style_section() -> None:
             st.markdown(f"**{d.label}** · {d.name}")
             st.caption(d.desc)
     if mode is Mode.QUICK:
-        st.caption("빠른 검사는 영역마다 선택이 4개뿐이라 영역 유형은 참고로만 보세요. 정밀 검사나 2·3차 검증을 더 하면 유형이 또렷해집니다.")
+        st.caption("빠른 검사는 영역마다 문제가 4개뿐이라 기우는 방향이 거의 드러나지 않습니다. "
+                   "2·3차 검증을 더 하면 유형이 또렷해집니다.")
 
 
 def self_section() -> None:
@@ -183,6 +193,8 @@ def self_section() -> None:
     if not gaps:
         return
     st.markdown(rp.self_summary(gaps, self_scores.get("_inflated", False)))
+    if validity.low:
+        st.caption(":material/warning: 응답 신뢰도가 낮아 이 비교는 참고로만 보세요.")
     st.altair_chart(charts.self_gap_chart([{"영역": g.label, "자기평가": g.self_index, "실제": g.ability_index,
                                             "판정": g.verdict} for g in gaps]))
     st.caption("자기평가는 1~5점 응답을 같은 척도로 옮긴 값입니다. 15점 넘게 차이 나면 과대·과소평가로 표시합니다. "
@@ -266,7 +278,18 @@ def round_tab(rd: rp.RoundData, prev: rp.RoundReport | None) -> None:
     answers_section(rd)
 
 
+def validity_section() -> None:
+    """응답 신뢰도: 결과를 얼마나 믿고 읽을지 (EQ 점수는 바꾸지 않는다)."""
+    icon = {"높음": ":material/verified:", "보통": ":material/info:", "낮음": ":material/warning:"}[validity.level]
+    box = {"높음": st.success, "보통": st.info, "낮음": st.warning}[validity.level]
+    text = f"**응답 신뢰도: {validity.level}** — {vd.SUMMARY[validity.level]}"
+    if validity.reasons:
+        text += "\n\n" + "\n".join(f"- {r}" for r in validity.reasons)
+    box(text, icon=icon)
+
+
 def final_tab() -> None:
+    validity_section()
     st.markdown("**EQ 분포에서 내 위치**")
     st.altair_chart(charts.distribution_chart(s.index))
     if len(rounds) > 1:

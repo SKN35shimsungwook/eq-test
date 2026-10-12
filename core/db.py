@@ -166,7 +166,7 @@ def series_sessions(engine: Engine, series_id: str) -> list[dict]:
 def seen_items(engine: Engine, series_id: str) -> set[str]:
     """묶음에서 이미 출제된 문항 ID (뒤 차수·심층검사가 겹치지 않게)."""
     q = (sa.select(responses.c.item_id).join(sessions, sessions.c.id == responses.c.session_id)
-         .where(sessions.c.series_id == series_id, responses.c.domain != "sr"))
+         .where(sessions.c.series_id == series_id, responses.c.domain.not_in(("sr", "fc"))))
     with engine.connect() as conn:
         return {r.item_id for r in conn.execute(q)}
 
