@@ -52,7 +52,7 @@ def test_from_dict_fills_slot_defaults():
     it = make_item("cri-public-3")
     assert it.domain is Domain.CRI and it.difficulty == 3
     assert it.format is ItemFormat.BEST_WORST
-    assert it.time_limit == 25 and it.expected_p == 0.45
+    assert it.time_limit == 35 and it.expected_p == 0.45
 
 
 def test_validate_catches_errors():
@@ -190,3 +190,15 @@ def test_save_responses_idempotent(engine):
     with engine.connect() as conn:
         n = conn.execute(sa.select(sa.func.count()).select_from(db.responses)).scalar_one()
     assert n == 1
+
+
+@pytest.mark.parametrize("mode", list(Mode))
+def test_real_bank_three_rounds_never_overlap(mode):
+    """실제 문항은행으로 1·2·3차를 겹치지 않게 낼 수 있다 (이미지 대기 중 대체 출제 포함)."""
+    n = 7 * (8 if mode is Mode.FULL else 4)
+    for seed in range(200):
+        seen = set()
+        for r in range(3):
+            ids = [it.id for its in build_form(ITEMS, seed * 7 + r, mode, exclude=seen).values() for it in its]
+            assert len(ids) == len(set(ids)) == n and not seen & set(ids), (seed, r)
+            seen |= set(ids)

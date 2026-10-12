@@ -44,8 +44,8 @@ def render_item(it) -> str:
     best, worst = (it.answer, None) if it.format is ItemFormat.MCQ else it.answer
     rows = []
     for i, c in enumerate(it.choices):
-        cls, tag = ("best", "정답" if worst is None else "가장 효과적") if i == best else \
-                   ("worst", "가장 덜 효과적") if i == worst else ("", "")
+        cls, tag = ("best", "정답" if worst is None else "✓ 가장 맞음") if i == best else \
+                   ("worst", "✗ 가장 아님") if i == worst else ("", "")
         rows.append(f'<div class="choice {cls}"><b>{LETTERS[i]}</b>{html.escape(c)}'
                     f'{f"<span class=tag>{tag}</span>" if tag else ""}</div>')
     timer = f" · {it.time_limit}초" if it.time_limit else ""

@@ -2,7 +2,9 @@
 
 감정을 알아차리고, 이해하고, 활용하고, 다루는 힘을 7개 영역에서 측정하는 Streamlit 앱입니다.
 정답이 있는 **상황 판단 검사**로 EQ(평균 100, 표준편차 15)를 내고, 시작 전 **자기평가**와 비교해
-"내가 보는 나 vs 실제 수행"을 보여 줍니다. 구조는 자매 프로젝트 `iq-test`와 같습니다.
+"내가 보는 나 vs 실제 수행"을 보여 줍니다. 구조는 자매 프로젝트 [iq-test](https://github.com/SKN35shimsungwook/iq-test)와 같습니다.
+
+**자세한 문서는 [docs/](docs/README.md)에 있습니다** — 연구 정리, 개발 과정, 응시자·운영자·개발자 가이드, 검증 기록, 채점 원리, 이미지 문항 제작.
 
 > 온라인 정서 역량 테스트이며, 표준화된 전문 심리검사를 대체하지 않습니다.
 
@@ -15,21 +17,32 @@
 | 감정 활용 | 일에 맞는 기분 · 기분이 판단에 주는 영향 · 감정과 감각 연결 · 감정을 동기로 쓰기 |
 | 감정 조절 | 관점 바꾸기 · 충동이 이는 순간 · 실패·좌절 후 회복 · 오래가는 스트레스 |
 | 대인관계·공감 | 위로·지지 · 갈등 · 어려운 말 전하기 · 거절·경계 지키기 |
-| 위기 대처 | 폭발 직전의 상대 · 돌발 사고 · 여럿 앞의 압박 · 시간에 쫓기는 선택 (문항마다 20~25초) |
+| 위기 대처 | 폭발 직전의 상대 · 돌발 사고 · 여럿 앞의 압박 · 시간에 쫓기는 선택 (문항마다 25~35초) |
 | 맥락 파악 | 비꼼·농담 · 돌려 말하기 · 분위기 읽기 · 말하지 않은 규칙 |
 
 ## 검사 구성
 
 | | 빠른 검사 | 정밀 검사 |
 |---|---|---|
+| 시간 | 약 20분 | 약 40분 |
 | 영역당 문항 | 4 (난이도 1~4 하나씩, 유형 모두 다름) | 8 (쉬움 1 · 보통 3 · 어려움 3 · 매우 어려움 1) |
 | 전체 | 28문항 | 56문항 |
 
-- **응답 형식**: 쉬움·보통은 4지선다, 어려움·매우 어려움은 가장 효과적인 것과 가장 덜 효과적인 것을 함께 골라 둘 다 맞아야 정답
-- **1·2·3차 검증**: 같은 구성, 겹치지 않는 동형 문항. 3차 뒤 **심층검사**(맞춤형 출제)
-- **자기평가**: 1차 전 한 번, 영역당 4문항 + 응답 점검 4문항 (EQ 점수에는 섞지 않음)
-- **문항 수 목표**: 고정 구성 슬롯은 동형 3개(1·2·3차), 나머지 슬롯 2개(심층검사) → 영역당 40, 전체 280
-- **이미지 대기**: 얼굴·풍경 이미지가 없으면 같은 난이도의 글 문항으로 대체 출제
+- **응답 형식**: 쉬움·보통은 4지선다, 어려움·매우 어려움은 **✓ 가장 맞음**과 **✗ 가장 아님**을 함께 골라 둘 다 맞아야 정답
+- **자기평가**: 1차 전 한 번, 영역당 4문항(역문항 포함) + 응답 점검 4문항. EQ 점수에는 섞지 않음
+- **1·2·3차 검증**: 같은 구성, 겹치지 않는 새 문제. 3차 뒤 **심층검사**(실력에 맞춘 맞춤형 출제)
+- **점수**: 3PL IRT + EAP → EQ. 실제 첫 응시 100명 전에는 봇 2만 명(모드별) 시뮬레이션 규준
+- **결과**: EQ·90% 범위·상위 %·수준, 차수별 탭, 영역 프로필, 강점, 자기평가 비교, 키우는 방법, 결과 카드
+
+## 현재 상태
+
+| 항목 | 상태 |
+|---|---|
+| 문항 | 267개 + 자기평가 32개 (감정 인식의 얼굴·풍경 **이미지 20장 대기**, 그동안 같은 난이도 글 문항으로 대체 출제) |
+| 검사·결과·관리자 화면 | 완료 |
+| 시뮬레이션 규준 | `norms/sim_norms.json` (모드별 2만 명) |
+| 테스트 | 33개 통과 |
+| 배포 | [DEPLOY.md](DEPLOY.md) 절차 대기 |
 
 ## 실행
 
@@ -37,43 +50,25 @@
 pip install -r requirements-dev.txt
 streamlit run streamlit_app.py
 python -m pytest -q
-python scripts/validate_items.py            # 문항 형식·중복 검증
-python scripts/validate_items.py --strict   # 출시 기준 (동형 수·문항 풀·자기평가 구성)
+python scripts/validate_items.py --strict     # 문항 검증 (출시 기준)
+python scripts/render_review.py               # 문항 검토 화면 → review/items_review.html
+python scripts/simulate.py --n 600            # 가상 응시 데이터 (관리자 화면 확인용, 로컬)
+python scripts/build_sim_norms.py --n 20000 --workers 8   # 시뮬레이션 규준 다시 만들기
 ```
 
 관리자 페이지를 쓰려면 `.streamlit/secrets.toml.example`을 `secrets.toml`로 복사해 `admin_password`를 정합니다.
 Supabase를 연결하지 않으면 `data/eq_test.db`(SQLite)에 저장됩니다.
-
-## 문항 파일
-
-`items/<영역>.json` (예: `und.json`)에 씁니다. 영역·유형·난이도·형식·예상 정답률·위기 대처 제한시간은 슬롯에서 자동으로 채워집니다.
-
-```json
-{
-  "id": "und-blend-3a", "slot": "und-blend-3",
-  "prompt": "상황 + 질문",
-  "choices": ["보기1", "보기2", "보기3", "보기4"],
-  "answer": [0, 2],
-  "explanation": "응시자에게 보여 줄 해설",
-  "rationale": "정답 근거 이론 (검토·관리용)"
-}
-```
-
-- `answer`: 쉬움·보통은 보기 인덱스, 어려움·매우 어려움은 `[가장 효과적, 가장 덜 효과적]`
-- 이미지 유형은 `"image": "파일명.png"` (`assets/images/`)
-- 정답 위치는 로드할 때 슬롯마다 A~D로 고르게 옮겨집니다.
-- 자기평가는 `items/self_report.json` (`reverse`: 역문항, `check`: 응답 점검 문항)
 
 ## 구조
 
 ```
 streamlit_app.py      내비게이션
 app_pages/            시작 · 검사 · 결과 · 관리자 분석
-core/schema.py        영역·유형·구성표·문항 스키마
-core/item_bank.py     문항 로드·검증·검사지 구성(이미지 대체 포함)
-core/db.py            세션·응답 저장 (SQLite / Supabase Postgres)
-core/runtime.py       DB 엔진·문항 캐시·세션 상태
-items/                문항은행
-scripts/              validate_items
+core/                 schema, item_bank, exam, scoring, report, charts, components, analysis, db, runtime
+items/                영역별 문항 JSON, self_report.json
+norms/                시뮬레이션 규준표
+scripts/              items_<영역>.py(문항 작성), validate_items, render_review, simulate, build_sim_norms,
+                      plot_norm_curves, check_db
+docs/                 문서
 tests/                pytest
 ```

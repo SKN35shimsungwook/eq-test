@@ -35,18 +35,22 @@ def balance_answer_positions(items: list[Item]) -> list[Item]:
     for it in items:
         by_slot[it.slot].append(it)
     for slot, group in by_slot.items():
-        order = random.Random(zlib.crc32(slot.encode())).sample(range(4), 4)
+        h = zlib.crc32(slot.encode())
+        order = random.Random(h).sample(range(4), 4)
         for k, it in enumerate(sorted(group, key=lambda x: x.id)):
             best = it.answer if it.format is ItemFormat.MCQ else it.answer[0]
             target = order[k % 4]
-            rest = [i for i in range(len(it.choices)) if i != best]
-            perm = rest[:target] + [best] + rest[target:]  # 새 위치 → 원래 인덱스
-            choices = [it.choices[i] for i in perm]
             if it.format is ItemFormat.MCQ:
-                answer = target
-            else:
-                answer = [target, perm.index(it.answer[1])]
-            out.append(replace(it, choices=choices, answer=answer))
+                rest = [i for i in range(len(it.choices)) if i != best]
+                perm = rest[:target] + [best] + rest[target:]  # 새 위치 → 원래 인덱스
+                out.append(replace(it, choices=[it.choices[i] for i in perm], answer=target))
+                continue
+            worst = it.answer[1]
+            free = [p for p in range(4) if p != target]
+            worst_at = free[(k + h) % 3]  # 최악 보기도 슬롯 안에서 자리를 돌린다
+            others = iter(i for i in range(4) if i not in (best, worst))
+            perm = [best if p == target else worst if p == worst_at else next(others) for p in range(4)]
+            out.append(replace(it, choices=[it.choices[i] for i in perm], answer=[target, worst_at]))
     return out
 
 
@@ -206,9 +210,13 @@ def _substitute(pool: dict[str, list[Item]], slot_id: str, form_slots: tuple[str
     others = [s for s in BLUEPRINT[Domain(slot_id.split("-")[0])].pool
               if SLOTS[s].difficulty == slot.difficulty and s != slot_id and SLOTS[s].subtype not in IMAGE_SUBTYPES]
     for group in ([s for s in others if s not in form_slots], [s for s in others if s in form_slots]):
-        cands = [it for s in group for it in pool.get(s, []) if it.id not in exclude and it.id not in used]
-        if cands:
-            return rng.choice(sorted(cands, key=lambda it: it.id))
+        left = {s: [it for it in pool.get(s, []) if it.id not in exclude and it.id not in used] for s in group}
+        left = {s: v for s, v in left.items() if v}
+        if left:
+            # 남은 문항이 가장 많은 슬롯에서 가져와, 한 슬롯이 먼저 바닥나 뒤 차수에서 문항이 겹치지 않게 한다
+            most = max(len(v) for v in left.values())
+            slot = rng.choice(sorted(s for s, v in left.items() if len(v) == most))
+            return rng.choice(sorted(left[slot], key=lambda it: it.id))
     return None
 
 
