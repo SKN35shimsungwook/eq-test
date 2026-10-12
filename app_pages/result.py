@@ -82,6 +82,10 @@ with st.container(border=True):
         f"**{s.lo:.0f}~{s.hi:.0f}** 사이에 있으며 (±{s.margin:.0f}점), 같은 검사를 본 사람 {rank_text(s.pct)}에 해당합니다. "
         f"점수는 평균 100, 표준편차 15인 척도입니다."
     )
+    other = sc.near_boundary(s.index, s.margin)
+    if other:
+        st.caption(f":material/swap_vert: 점수가 '{sc.level(s.index)}'·'{other}' 두 수준의 경계 근처라, 다시 검사하면 수준 이름이 "
+                   "바뀔 수 있습니다. 수준 이름보다 점수 범위를 보세요.")
     if norm.empirical:
         basis = f"이 검사를 처음 응시한 {norm.n:,}명의 실제 분포"
     elif norm.simulated:
@@ -103,7 +107,25 @@ def _choice(item, idx: int | None) -> str:
     return "미응답" if idx is None else f"{LETTERS[idx]}. {item.choices[idx]}"
 
 
+COMPACT_MAX_ITEMS = 4  # 영역 응답이 이 이하면(빠른 검사 1차) 영역 점수 대신 강점·약점 후보만
+
+
 def domain_section(rep: rp.RoundReport, quick_note: bool) -> None:
+    if max(d.n for d in rep.domains) <= COMPACT_MAX_ITEMS:
+        # 영역마다 4문항이면 90% 범위가 ±20점을 넘어 막대그래프가 오해를 부른다 (docs/11)
+        strong, weak = sc.strengths_weaknesses({d.domain: (d.score.index, d.score.margin / sc.CI_Z) for d in rep.domains})
+        strong, weak = {d for d, _ in strong}, {d for d, _ in weak}
+        st.caption(f"영역마다 {max(d.n for d in rep.domains)}문항뿐이라 영역 점수의 오차가 "
+                   f"±{sum(d.score.margin for d in rep.domains) / len(rep.domains):.0f}점 안팎입니다. 점수 대신 다른 영역보다 "
+                   "뚜렷하게 높거나 낮은 **후보**만 보여 드립니다. 2·3차 검증을 더 하면 영역 점수 그래프가 나옵니다.")
+        st.dataframe({
+            "영역": [d.label for d in rep.domains],
+            "판정": ["강점 후보" if d.domain in strong else "키울 영역 후보" if d.domain in weak else "–" for d in rep.domains],
+            "맞힌 문항": [f"{d.correct} / {d.n}" for d in rep.domains],
+            "90% 범위": [f"{d.score.lo:.0f}–{d.score.hi:.0f}" for d in rep.domains],
+            "측정 능력": [sc.ABILITY_TEXT[d.domain] for d in rep.domains],
+        }, hide_index=True)
+        return
     if quick_note:
         st.caption("빠른 검사는 영역마다 문항이 적어 영역 점수의 오차가 큽니다. 범위를 함께 보세요.")
     rows = [{"영역": d.label, "지수": d.score.index, "하한": d.score.lo, "상한": d.score.hi} for d in rep.domains]
@@ -158,7 +180,9 @@ def style_section() -> None:
         return
     st.markdown("**나의 정서 유형**")
     with st.container(border=True):
-        st.markdown(f"### {prof.name}")
+        st.markdown(f"### {prof.name}" + (f" :gray-badge[확신도 {prof.confidence}]" if prof.confidence else ""))
+        if prof.confidence == "약함":
+            st.caption("이쪽으로 기우는 기미가 보이지만 우연일 가능성도 남아 있습니다. 2·3차 검증을 더 하면 또렷해지거나 사라집니다.")
         if prof.name == "상황맞춤형":
             st.caption("상황마다 알맞은 방법을 대부분 골라, 특정 방식으로 기우는 버릇이 드러나지 않았습니다.")
         elif prof.name == "균형형":

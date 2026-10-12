@@ -44,8 +44,8 @@ def load_frames(engine: Engine, include_sim: bool = False) -> tuple[pd.DataFrame
 
 
 def _p(item: Item, theta: np.ndarray) -> np.ndarray:
-    a, b, c = sc.item_params(item)
-    return c + (1 - c) / (1 + np.exp(-sc.D * a * (theta - b)))
+    """완전히 맞힐 확률 (최선·최악은 둘 다)."""
+    return sc.p_correct(item, theta)
 
 
 def ability(responses: pd.DataFrame) -> pd.DataFrame:

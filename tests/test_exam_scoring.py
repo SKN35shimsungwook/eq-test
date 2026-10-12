@@ -155,7 +155,9 @@ def test_sim_norm_centered_and_monotonic(mode):
 
 def test_empirical_norm_overrides_sim():
     import numpy as np
-    norm = sc.build_norm([{"total": t} for t in np.linspace(-1, 1, 200)], sim=sc.load_sim("quick"))
+    norm = sc.build_norm([{"total": t} for t in np.linspace(-1, 1, sc.MIN_NORM_N)], sim=sc.load_sim("quick"))
+    fewer = sc.build_norm([{"total": t} for t in np.linspace(-1, 1, sc.MIN_NORM_N - 1)], sim=sc.load_sim("quick"))
+    assert not fewer.empirical  # 기준보다 적으면 아직 시뮬레이션 규준
     assert norm.empirical and not norm.simulated
     assert norm.z(norm.mean, None, "1") == pytest.approx(0)
 
@@ -166,3 +168,35 @@ def test_stage_names_and_scale_range():
     for theta in (-2.5, -0.5, 0, 1.2, 2.8):
         s = rp.scale(theta, 0.3, norm, stage="1-2")
         assert 40 <= s.lo <= s.index <= s.hi <= 160
+
+
+def test_crisis_reading_then_decision():
+    """위기 대처: 상황 읽기는 시간 제한 없음, 보기를 연 뒤부터 판단 시간."""
+    items = {it.id: it for it in load_items()}
+    item = next(it for it in items.values() if it.domain is Domain.CRI)
+    exam = {"deadline": 999.0, "entered": None, "ms": {}}
+    assert ex.reading(exam, item)
+    ex.start_reading(exam, item, now=100.0)
+    assert exam["deadline"] is None and not ex.is_expired(exam, now=10_000.0)  # 오래 읽어도 넘어가지 않음
+    ex.finish_reading(exam, item, now=160.0)
+    assert exam["read_ms"][item.id] == 60_000
+    assert not ex.reading(exam, item)
+    assert exam["deadline"] == 160.0 + CRISIS_SEC[item.difficulty]
+    ex.start_reading(exam, item, now=170.0)  # 새로고침: 이미 보기를 열었으면 읽기 단계로 돌아가지 않음
+    assert exam["deadline"] == 160.0 + CRISIS_SEC[item.difficulty]
+
+
+def test_best_worst_partial_credit():
+    items = {it.id: it for it in load_items()}
+    it = next(i for i in items.values() if i.format is ItemFormat.BEST_WORST)
+    b, w = it.answer
+    other = next(k for k in range(4) if k not in (b, w))
+    assert ex.score_item(it, f"{b},{w}") == (True, 1.0)
+    assert ex.score_item(it, f"{b},{other}") == (False, 0.5)
+    assert ex.score_item(it, f"{other},{w}") == (False, 0.0)
+    # 최선만 맞히면 다 틀린 것보다 높고 다 맞힌 것보다 낮게 추정
+    rows = lambda s: [{"item_id": it.id, "domain": it.domain.value, "correct": s == 1, "score": s}] * 6  # noqa: E731
+    th = [sc.estimate(rows(s), items)[1].theta for s in (0.0, 0.5, 1.0)]
+    assert th[0] < th[1] < th[2]
+    # 둘 다 맞힐 확률은 예전 3모수와 같게 (θ = 0)
+    assert abs(float(sc.p_correct(it, 0.0)) - it.expected_p) < 1e-6

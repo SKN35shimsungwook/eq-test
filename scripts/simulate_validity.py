@@ -101,8 +101,8 @@ class Bot:
         elif sloppy:
             best = self.fav_pos if rng.random() < 0.85 else rng.randrange(4)
         else:
-            p = _p(it, self.theta)
-            best = key if rng.random() < (math.sqrt(p) if bw else p) else rng.choice([i for i in range(4) if i != key])
+            p_best = float(sc._p3(*sc.bw_steps(it)[0], self.theta)) if bw else _p(it, self.theta)
+            best = key if rng.random() < p_best else rng.choice([i for i in range(4) if i != key])
         if bw:
             worst = rng.choice([i for i in range(4) if i != best])
             ans = f"{best},{worst}"

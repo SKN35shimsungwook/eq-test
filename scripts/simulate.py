@@ -85,9 +85,16 @@ def answer(item_id: str, theta: float) -> str:
         worst = it.answer[1] if it.answer[1] != best else it.answer[0]
     if ok:
         return f"{best},{worst}"
-    b = rng.choice([best] + [k for k in range(4) if k != best])  # 틀린 경우에도 최선은 맞히기도 한다
-    w = rng.choice([k for k in range(4) if k != b and (b != best or k != worst)])
-    return f"{b},{w}"
+    # 둘 다 맞히지는 못함: 채점의 순차 모형 비율대로 '최선만 맞힘'과 '최선 틀림'을 나눈다
+    s1, s2 = sc.bw_steps(it)
+    shift = true_b[item_id] - sc.item_params(it)[1]
+    p1 = float(sc._p3(s1[0], s1[1] + shift, s1[2], theta))
+    p2 = float(sc._p3(s2[0], s2[1] + shift, s2[2], theta))
+    best_only = p1 * (1 - p2) / max(1e-9, 1 - p1 * p2)
+    if rng.random() < best_only:
+        return f"{best},{rng.choice([k for k in range(4) if k not in (best, worst)])}"
+    b = rng.choice([k for k in range(4) if k != best])
+    return f"{b},{rng.choice([k for k in range(4) if k != b])}"
 
 
 def self_answers(theta: float) -> dict[str, int]:

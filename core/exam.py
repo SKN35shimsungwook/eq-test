@@ -83,12 +83,12 @@ def new_deep_exam(prior_rows: list[dict], seen: set[str], mode: Mode) -> dict:
 def deep_estimate(exam: dict, items: dict[str, Item], domain: Domain) -> tuple[float, float]:
     """앞 차수 + 지금까지의 심층검사 응답으로 추정한 (θ, 표준오차)."""
     rows = exam["prior"].get(domain.value, []) + [
-        {"item_id": i, "domain": domain.value, "correct": score_item(items[i], exam["answers"].get(i))[0]}
+        dict(zip(("correct", "score"), score_item(items[i], exam["answers"].get(i))), item_id=i, domain=domain.value)
         for i in exam["items"][domain.value]]
     rows = [r for r in rows if r["item_id"] in items]
     if not rows:
         return 0.0, 1.0
-    return scoring.eap(scoring._likelihood([items[r["item_id"]] for r in rows], [bool(r["correct"]) for r in rows]))
+    return scoring.eap(scoring._likelihood([items[r["item_id"]] for r in rows], [scoring.row_score(r) for r in rows]))
 
 
 def deep_next(exam: dict, items: dict[str, Item], seed: int) -> str | None:
@@ -135,6 +135,27 @@ def start_domain(exam: dict, mode: Mode, now: float | None = None) -> None:
     exam.update(stage="items", i=0, entered=now, deadline=now + limit if limit else None)
 
 
+def start_reading(exam: dict, item: Item, now: float | None = None) -> None:
+    """위기 대처: 상황 읽기 단계 시작. 시간 제한 없음 (이미 시작했으면 유지 — 새로고침 대비)."""
+    now = time.time() if now is None else now
+    if exam.get("read_item") != item.id:
+        exam.update(read_item=item.id, deadline=None, entered=now)
+
+
+def finish_reading(exam: dict, item: Item, now: float | None = None) -> None:
+    """보기를 열면 읽은 시간을 따로 남기고, 그때부터 판단 시간을 잰다."""
+    now = time.time() if now is None else now
+    if exam["entered"] is not None:
+        exam.setdefault("read_ms", {})[item.id] = int((now - exam["entered"]) * 1000)
+    exam["entered"] = now
+    start_item(exam, item, now)
+
+
+def reading(exam: dict, item: Item) -> bool:
+    """위기 대처 문항이 아직 읽기 단계인가 (보기를 열지 않음)."""
+    return item_timed(item.domain) and exam.get("item_id") != item.id
+
+
 def start_item(exam: dict, item: Item, now: float | None = None) -> None:
     """문항 제한시간이 있는 문항을 보여 주기 시작할 때 마감을 정한다 (이미 정했으면 유지 — 새로고침 대비)."""
     now = time.time() if now is None else now
@@ -158,8 +179,12 @@ def track_time(exam: dict, item_id: str, now: float | None = None) -> None:
 # ---------------------------------------------------------------- 채점
 
 def score_item(item: Item, answer: str | None) -> tuple[bool, float]:
-    ok = item.is_correct(parse_answer(item, answer))
-    return ok, float(ok)
+    """(완전히 맞음, 점수). 최선·최악은 최선만 맞히면 0.5 (부분 점수)."""
+    resp = parse_answer(item, answer)
+    ok = item.is_correct(resp)
+    if ok or item.format is not ItemFormat.BEST_WORST or resp is None:
+        return ok, float(ok)
+    return False, 0.5 if resp[0] == item.answer[0] else 0.0
 
 
 def domain_rows(exam: dict, items: dict[str, Item], domain: Domain) -> list[dict]:

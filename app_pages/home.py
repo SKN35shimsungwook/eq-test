@@ -5,12 +5,12 @@ import streamlit as st
 from core import db
 from core.components import client_id
 from core.runtime import APP_VERSION, get_engine, get_final_items, get_self_items
-from core.schema import BLUEPRINT, MODE_LABELS, Mode
+from core.schema import BLUEPRINT, CRISIS_SEC, MODE_LABELS, Mode
 
 
 def fmt_time(sec: int) -> str:
     if not sec:
-        return "문항마다 25~35초"
+        return f"상황 읽기 + 보기를 연 뒤 {min(CRISIS_SEC.values())}~{max(CRISIS_SEC.values())}초"
     return f"{sec // 60}분" if sec % 60 == 0 else f"{sec // 60}분 {sec % 60}초" if sec > 60 else f"{sec}초"
 
 

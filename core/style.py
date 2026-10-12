@@ -11,7 +11,8 @@
 - 세 축(A 감정↔문제, B 다가감↔거리, C 표현↔절제): 행동 영역에서 놓친 문항마다
   (고른 보기의 축 − 그 문항 오답 보기들의 평균 축)을 더해 (놓친 수 + 4)로 나눈다. 버릇이 없으면 0 근처.
   뚜렷한 축 = 그 기울기가 우연이 아닐 때(z ≥ 2.3)이고 점수 절댓값 0.15 이상.
-- 이름: 뚜렷한 축 중 가장 강한 축의 명사 + 둘째 축의 꾸밈말.
+- 이름: 뚜렷한 축 중 가장 강한 축의 명사 + 둘째 축의 꾸밈말 (확신도 '뚜렷함').
+  뚜렷한 축이 없지만 z ≥ 1.96인 축이 있으면 "○○형 경향" (확신도 '약함').
   뚜렷한 축이 없으면 행동 영역 정답 비율에 따라 상황맞춤형 / 균형형.
 검증: scripts/simulate_styles.py (참 성향을 심은 봇으로 회복률·재검사 일치·능력과의 얽힘을 잰다).
 """
@@ -31,6 +32,7 @@ LEAN_MIN = 3         #   + 최소 3번
 AXIS_PRIOR = 4       # 축 점수(그래프) 축소: 놓친 문항이 적으면 0 쪽으로
 AXIS_Z = 2.3         # 뚜렷한 축: 놓친 문항들의 기울기가 우연이 아닐 것 (우연이면 축마다 약 2%)
 AXIS_STRONG = 0.15   #   + 축 점수 절댓값 이 이상
+AXIS_WEAK_Z = 1.96   # 약한 경향: 뚜렷하지는 않지만 우연이면 축마다 약 5% — 이름에 "경향"과 확신도 '약함'을 붙인다
 MIN_PICKS = 3        # 영역 유형을 말하려면 필요한 최소 응답 수
 
 AXES = [
@@ -103,6 +105,7 @@ class Profile:
     n_action: int = 0             # 행동 영역 응답 수
     n_action_miss: int = 0
     axes_z: dict[str, float] = field(default_factory=dict)  # 축마다 우연 대비 z (|z| ≥ AXIS_Z면 뚜렷)
+    confidence: str = ""          # 이름의 확신도: 뚜렷함 | 약함 | "" (상황맞춤형·균형형·판단 보류)
 
 
 @dataclass
@@ -210,8 +213,15 @@ def profile(rows: list[dict], items: dict[str, Item]) -> Profile:
     strong = sorted([(k, v) for k, v in axes.items() if abs(v) >= AXIS_STRONG and abs(z[k]) >= AXIS_Z],
                     key=lambda kv: (-abs(z[kv[0]]), kv[0]))[:2]
     sign = {k: 1 if v > 0 else -1 for k, v in strong}
+    weak = sorted([(k, v) for k, v in axes.items() if abs(v) >= AXIS_STRONG and abs(z[k]) >= AXIS_WEAK_Z],
+                  key=lambda kv: (-abs(z[kv[0]]), kv[0]))[:1]
+    confidence = "뚜렷함" if strong else ""
     if not action:
         name = "판단 보류"
+    elif not strong and weak:
+        k, v = weak[0]
+        name = f"{AXIS_NOUNS[(k, 1 if v > 0 else -1)]} 경향"
+        confidence = "약함"
     elif not strong:
         name = "상황맞춤형" if (len(action) - n_miss) / len(action) >= MATCH_SHARE else "균형형"
     else:
@@ -241,4 +251,4 @@ def profile(rows: list[dict], items: dict[str, Item]) -> Profile:
                    else "잘못 읽을 때 특정 방향으로 치우치지는 않습니다.")
 
     advice = [AXIS_ADVICE[(k, sign[k])] for k, _ in strong]
-    return Profile(domains, axes, name, reading, advice, len(action), n_miss, z)
+    return Profile(domains, axes, name, reading, advice, len(action), n_miss, z, confidence)

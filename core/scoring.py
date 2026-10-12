@@ -4,6 +4,9 @@
   - 3모수 로지스틱 모형 P(θ) = c + (1−c) / (1 + e^(−1.7·a·(θ−b)))
     a = 1, c = 찍어서 맞힐 확률(4지선다 1/4 중 실제 추측은 0.2로 둠, 최선·최악은 1/12),
     b는 평균 능력(θ=0)에서 정답률이 expected_p가 되도록 잡는다. 보정한 irt_a/b/c가 있으면 그 값을 쓴다.
+  - 최선·최악 문항은 부분 점수(순차 모형): ① 최선을 맞힐 확률 P1(찍기 1/4) → ② 최선을 맞혔을 때 최악도 맞힐 확률
+    P2(찍기 1/3). θ=0에서 P1 = P2 = √(둘 다 맞힐 확률)이 되게 잡아, 둘 다 맞힐 확률은 예전 3모수와 같다.
+    응답 점수 1(둘 다) · 0.5(최선만) · 0(최선 틀림) 세 단계를 모두 추정에 쓴다.
   - θ는 표준정규 사전분포를 둔 EAP(사후 평균)로 추정하고, 사후 표준편차를 표준오차로 쓴다.
 실제 응시자가 적을 때는 봇 시뮬레이션 규준(norms/sim_norms.json, scripts/build_sim_norms.py)으로
 "같은 단계(1차 / 1~2차 / 1~3차 / +심층)를 마친 가상 응시자 중 위치"를 구해 EQ로 바꾼다.
@@ -25,7 +28,7 @@ from core.schema import Domain, Item, ItemFormat
 
 D = 1.7
 GUESS = {ItemFormat.MCQ: 0.2, ItemFormat.BEST_WORST: 1 / 12}  # 4 × 3 = 12가지 조합 중 하나
-MIN_NORM_N = 100
+MIN_NORM_N = 300  # 실제 분포로 바꾸는 첫 응시 수 (100명이면 백분위 오차가 ±5%p, 300명이면 ±3%p)
 GRID = np.linspace(-4, 4, 161)
 PRIOR = np.exp(-GRID ** 2 / 2)
 NORMAL = NormalDist()
@@ -75,13 +78,65 @@ def item_params(item: Item) -> tuple[float, float, float]:
     return 1.0, math.log(1 / q - 1) / D, c
 
 
-def _likelihood(items: list[Item], correct: list[bool]) -> np.ndarray:
+def _p3(a: float, b: float, c: float, theta):
+    return c + (1 - c) / (1 + np.exp(-D * a * (theta - b)))
+
+
+_STEPS: dict[tuple, tuple] = {}
+
+
+def bw_steps(item: Item) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """최선·최악 문항의 두 단계 (a, b, c): 최선 맞히기, 최선을 맞혔을 때 최악 맞히기."""
+    key = (item.id, item.expected_p, item.irt_a, item.irt_b, item.irt_c)
+    if key not in _STEPS:
+        _STEPS[key] = _bw_steps(item)
+    return _STEPS[key]
+
+
+def _bw_steps(item: Item) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    a, b, c = item_params(item)
+    s = math.sqrt(float(_p3(a, b, c, 0.0)))  # θ=0에서 각 단계 정답률
+    steps = []
+    for cg in (1 / 4, 1 / 3):
+        q = (min(max(s, cg + 0.02), 0.98) - cg) / (1 - cg)
+        steps.append((a, math.log(1 / q - 1) / (D * a), cg))
+    return steps[0], steps[1]
+
+
+def category_probs(item: Item, theta) -> list:
+    """응답 점수 단계별 확률. 4지선다 [틀림, 맞음], 최선·최악 [최선 틀림, 최선만, 둘 다]."""
+    if item.format is ItemFormat.MCQ:
+        p = _p3(*item_params(item), theta)
+        return [1 - p, p]
+    s1, s2 = bw_steps(item)
+    p1, p2 = _p3(*s1, theta), _p3(*s2, theta)
+    return [1 - p1, p1 * (1 - p2), p1 * p2]
+
+
+def p_correct(item: Item, theta):
+    """완전히 맞힐(최선·최악은 둘 다) 확률."""
+    return category_probs(item, theta)[-1]
+
+
+def outcome(item: Item, score: float) -> int:
+    """응답 점수 → 단계 번호 (category_probs의 인덱스)."""
+    if item.format is ItemFormat.MCQ:
+        return int(score >= 1)
+    return 2 if score >= 1 else 1 if score > 0 else 0
+
+
+def _likelihood(items: list[Item], scores: list[float]) -> np.ndarray:
+    """scores: 문항별 응답 점수 (1 / 0.5 / 0, 맞음·틀림만 있으면 1·0)."""
     like = np.ones_like(GRID)
-    for it, ok in zip(items, correct):
-        a, b, c = item_params(it)
-        p = c + (1 - c) / (1 + np.exp(-D * a * (GRID - b)))
-        like *= p if ok else 1 - p
+    for it, s in zip(items, scores):
+        like *= category_probs(it, GRID)[outcome(it, float(s))]
     return like
+
+
+def row_score(r: dict) -> float:
+    """응답 행의 점수. 예전 행처럼 score가 없으면 correct로."""
+    s = r.get("score")
+    return float(r["correct"]) if s is None else float(s)
 
 
 def eap(likelihood: np.ndarray) -> tuple[float, float]:
@@ -104,10 +159,10 @@ class Estimate:
 
 
 def information(item: Item, theta: float) -> float:
-    """3모수 문항 정보량 I(θ). 심층검사는 지금 추정한 θ에서 이 값이 가장 큰 문항을 고른다."""
-    a, b, c = item_params(item)
-    p = c + (1 - c) / (1 + math.exp(-D * a * (theta - b)))
-    return (D * a) ** 2 * ((p - c) ** 2 / (1 - c) ** 2) * ((1 - p) / p)
+    """문항 정보량 I(θ) = Σ (P_k')² / P_k. 심층검사는 지금 추정한 θ에서 이 값이 가장 큰 문항을 고른다."""
+    h = 1e-4
+    lo, mid, hi = (category_probs(item, theta + d) for d in (-h, 0.0, h))
+    return float(sum(((b - a) / (2 * h)) ** 2 / max(m, 1e-12) for a, m, b in zip(lo, mid, hi)))
 
 
 def to_index(z: float) -> float:
@@ -122,6 +177,19 @@ def level(index: float) -> str:
     return next(label for cut, label in LEVELS if index >= cut)
 
 
+BOUNDARY_Z = 0.674  # 경계 건너편일 확률이 25% 이상이면 '경계 근처'
+
+
+def near_boundary(index: float, margin: float) -> str | None:
+    """점수가 수준 경계에 가까우면(건너편일 확률 25% 이상) 건너편 수준 이름, 아니면 None.
+    margin: 90% 범위 반폭 (표준오차 = margin / 1.645)."""
+    se = max(margin, 1e-6) / CI_Z
+    for cut, _ in LEVELS[:-1]:
+        if abs(index - cut) < BOUNDARY_Z * se:
+            return level(cut - 0.01) if index >= cut else level(cut)
+    return None
+
+
 def estimate(rows: list[dict], items: dict[str, Item]) -> tuple[dict[Domain, Estimate], Estimate]:
     """응답 행(core.exam.domain_rows 형식) → (영역별 추정, 종합 추정).
 
@@ -134,7 +202,7 @@ def estimate(rows: list[dict], items: dict[str, Item]) -> tuple[dict[Domain, Est
         drows = [r for r in rows if r["domain"] == domain.value]
         if not drows:
             continue
-        like = _likelihood([items[r["item_id"]] for r in drows], [bool(r["correct"]) for r in drows])
+        like = _likelihood([items[r["item_id"]] for r in drows], [row_score(r) for r in drows])
         total_like *= like
         raw = sum(r["score"] for r in drows)
         per_domain[domain] = Estimate(*eap(like), raw=raw, n_items=len(drows))

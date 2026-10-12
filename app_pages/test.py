@@ -19,8 +19,9 @@ INTROS = {
     Domain.REG: "내 감정이 크게 흔들리는 상황에서 가장 효과적으로 다스리는 방법을 고르는 문제입니다.",
     Domain.REL: "다른 사람을 위로하고, 갈등을 풀고, 어려운 말을 전하고, 선을 지키는 방법을 고르는 문제입니다.",
     Domain.CON: "새 환경 적응, 배신, 소외, 가족·연애 갈등처럼 관계가 흔들리는 상황에서 알맞은 해결 방법을 고르는 문제입니다.",
-    Domain.CRI: "갑작스러운 위기 상황에서 순간적으로 판단하는 문제입니다. **문항마다 짧은 제한시간**이 있고, "
-                "시간이 끝나면 그때까지 고른 답으로 넘어갑니다. 앞 문제로 돌아갈 수 없습니다.",
+    Domain.CRI: "갑작스러운 위기 상황에서 순간적으로 판단하는 문제입니다. 먼저 **상황을 시간 제한 없이** 읽고, "
+                "**보기를 열면** 짧은 제한시간 안에 골라야 합니다. 시간이 끝나면 그때까지 고른 답으로 넘어가고, "
+                "앞 문제로 돌아갈 수 없습니다.",
     Domain.CTX: "말 속에 숨은 뜻, 그 자리의 분위기, 말하지 않은 규칙을 읽어 내는 문제입니다.",
 }
 BW_HELP = ("어려운 문제입니다. 질문에 **가장 맞는 보기**(✓)와 **가장 거리가 먼 보기**(✗)를 하나씩 골라 주세요. "
@@ -185,7 +186,8 @@ if exam["stage"] == "intro":
         if limit:
             facts.append(f"제한시간 **{limit // 60}분{f' {limit % 60}초' if limit % 60 else ''}**")
         elif timed:
-            facts.append("문항마다 **25~35초**")
+            secs = sorted({items[i].time_limit for i in ids}) or [0]
+            facts.append(f"상황은 천천히 읽고, 보기를 연 뒤 **{secs[0]}~{secs[-1]}초** 안에 선택")
         st.markdown(" · ".join(facts))
         st.caption("어려운 문제는 가장 맞는 보기와 가장 거리가 먼 보기를 함께 고르는 방식입니다.")
     if st.button("시작", type="primary", icon=":material/play_arrow:"):
@@ -201,6 +203,18 @@ if exam["stage"] == "intro":
 if exam["i"] >= len(ids):
     close_domain()
 item = items[ids[exam["i"]]]
+if timed and ex.reading(exam, item):
+    # 위기 대처 1단계: 상황만 시간 제한 없이 읽는다 (읽기 속도가 점수에 섞이지 않게)
+    ex.start_reading(exam, item)
+    save_progress()
+    st.markdown(f"**{spec.label}** · {exam['i'] + 1} / {len(ids)} · 상황 읽기")
+    st.markdown(f"#### {item.prompt}")
+    st.caption(f"상황을 다 읽었으면 보기를 여세요. 보기를 열면 **{item.time_limit}초** 안에 골라야 합니다.")
+    if st.button("보기 열기", type="primary", icon=":material/timer:"):
+        ex.finish_reading(exam, item)
+        save_progress()
+        st.rerun()
+    st.stop()
 if timed:
     ex.start_item(exam, item)
     save_progress()

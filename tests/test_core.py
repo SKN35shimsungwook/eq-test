@@ -7,8 +7,8 @@ import sqlalchemy as sa
 from core import db
 from core.item_bank import (balance_answer_positions, build_form, load_items, load_self_items, validate_bank,
                             validate_blueprint, validate_self_items)
-from core.schema import (BLUEPRINT, FIXED_SLOTS, IMAGE_SUBTYPES, MIN_DOMAIN_POOL, MIN_FORMS_FIXED, MIN_FORMS_POOL,
-                         SLOTS, Domain, Item, ItemFormat, Mode, SelfItem)
+from core.schema import (BLUEPRINT, CRISIS_SEC, FIXED_SLOTS, IMAGE_SUBTYPES, MIN_DOMAIN_POOL, MIN_FORMS_FIXED,
+                         MIN_FORMS_POOL, SLOTS, Domain, Item, ItemFormat, Mode, SelfItem)
 
 ITEMS = load_items()
 
@@ -52,7 +52,7 @@ def test_from_dict_fills_slot_defaults():
     it = make_item("cri-public-3")
     assert it.domain is Domain.CRI and it.difficulty == 3
     assert it.format is ItemFormat.BEST_WORST
-    assert it.time_limit == 35 and it.expected_p == 0.45
+    assert it.time_limit == CRISIS_SEC[3] and it.expected_p == 0.45
 
 
 def test_validate_catches_errors():

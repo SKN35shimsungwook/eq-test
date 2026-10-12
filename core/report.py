@@ -172,7 +172,7 @@ def deep_trace(prior_rows: list[dict], deep_rows: list[dict], items: dict[str, I
         prior = [r for r in prior_rows if r["domain"] == d.value]
         for k in range(len(drows) + 1):
             use = prior + drows[:k]
-            like = sc._likelihood([items[r["item_id"]] for r in use], [bool(r["correct"]) for r in use])
+            like = sc._likelihood([items[r["item_id"]] for r in use], [sc.row_score(r) for r in use])
             theta, se = sc.eap(like)
             s = scale(theta, se, norm, d, "1-3+deep" if k else "1-3")
             row = {"영역": BLUEPRINT[d].label, "단계": k, "지수": s.index, "하한": s.lo, "상한": s.hi}

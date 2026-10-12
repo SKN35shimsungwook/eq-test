@@ -60,6 +60,12 @@ def _p(item, theta: float) -> float:
     return c + (1 - c) / (1 + math.exp(-sc.D * a * (theta - b)))
 
 
+def _steps(item, theta: float) -> tuple[float, float]:
+    """최선·최악: (최선 맞힐 확률, 최선을 맞혔을 때 최악도 맞힐 확률) — 채점과 같은 순차 모형."""
+    s1, s2 = sc.bw_steps(item)
+    return float(sc._p3(*s1, theta)), float(sc._p3(*s2, theta))
+
+
 def expected_lean(domain, v) -> list[str]:
     """참 축 벡터로 본 그 영역의 버릇 유형들 (가장 끌리는 유형, 동점이면 모두). 끌림이 없으면 []."""
     scores = {c: sum(a * b for a, b in zip(STYLES[domain][c].axes, v)) for c in STYLES[domain]}
@@ -71,7 +77,8 @@ def answer(item, theta, v, bias, strength, rng) -> dict:
     p = _p(item, theta)
     bw = item.format is ItemFormat.BEST_WORST
     key = item.answer[0] if bw else item.answer
-    if rng.random() < (math.sqrt(p) if bw else p):
+    p1, p2 = _steps(item, theta) if bw else (p, 0.0)
+    if rng.random() < p1:
         best = key
     else:
         st = STYLES[item.domain]
@@ -84,7 +91,7 @@ def answer(item, theta, v, bias, strength, rng) -> dict:
         best = rng.choices(range(4), weights=w)[0]
     if bw:
         wk = item.answer[1]
-        worst = wk if (best == key and rng.random() < math.sqrt(p)) else rng.choice([i for i in range(4) if i != best])
+        worst = wk if (best == key and rng.random() < p2) else rng.choice([i for i in range(4) if i not in (best, wk)])
         ok, ans = best == key and worst == wk, f"{best},{worst}"
     else:
         ok, ans = best == key, str(best)
@@ -140,8 +147,9 @@ def pct(x) -> str:
 
 
 def name_axis(name: str) -> tuple[str, int] | None:
+    """이름의 중심 축 (뚜렷한 이름은 끝 명사, 약한 경향은 "○○형 경향")."""
     for (k, s), noun in sty.AXIS_NOUNS.items():
-        if name.endswith(noun):
+        if name.endswith(noun) or name == f"{noun} 경향":
             return k, s
     return None
 
