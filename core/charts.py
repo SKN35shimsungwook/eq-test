@@ -143,3 +143,20 @@ def self_gap_chart(rows: list[dict]) -> alt.LayerChart:
         tooltip=["영역", "구분", alt.Tooltip("값:Q", format=".0f"), "판정"])
     mean = alt.Chart(pd.DataFrame({"x": [100]})).mark_rule(color=MUTED, strokeDash=[4, 4]).encode(x="x:Q")
     return (mean + link + dots).properties(height=40 * len(df) + 40).configure_view(stroke=None)
+
+
+def axes_chart(rows: list[dict]) -> alt.LayerChart:
+    """세 축(−1~1)을 가운데 0 기준 막대로. rows: 축, 왼쪽, 오른쪽, 값."""
+    df = pd.DataFrame(rows)
+    df["표시"] = df["값"].map(lambda v: f"{abs(v):.0%} " + ("오른쪽" if v > 0 else "왼쪽" if v < 0 else "가운데"))
+    y = alt.Y("축:N", sort=list(df["축"]), title=None, axis=None)
+    x = alt.X("값:Q", scale=alt.Scale(domain=[-1, 1]), title=None, axis=alt.Axis(values=[-1, 0, 1], labels=False, ticks=False))
+    base = alt.Chart(df)
+    track = base.mark_bar(color="#e5e7eb", height=14, cornerRadius=7).encode(
+        y=y, x=alt.datum(-1), x2=alt.datum(1))
+    bar = base.mark_bar(color=PRIMARY, height=14, cornerRadius=7).encode(
+        y=y, x=alt.datum(0), x2="값:Q", tooltip=["축", alt.Tooltip("표시:N", title="기울기")])
+    left = base.mark_text(align="left", dx=4, dy=-16, color="#6b7280").encode(y=y, x=alt.datum(-1), text="왼쪽:N")
+    right = base.mark_text(align="right", dx=-4, dy=-16, color="#6b7280").encode(y=y, x=alt.datum(1), text="오른쪽:N")
+    mid = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color=MUTED, strokeDash=[3, 3]).encode(x="x:Q")
+    return (track + bar + mid + left + right).properties(height=60 * len(df) + 10).configure_view(stroke=None)

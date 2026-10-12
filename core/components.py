@@ -266,10 +266,11 @@ export default function (component) {
   g.font = font(800, 150); g.fillText(Math.round(data.index), W / 2, 260)
   g.fillStyle = "#111827"
   g.font = font(700, 52); g.fillText(`${data.position} · ${data.level}`, W / 2, 390)
-  g.fillStyle = "#6b7280"; g.font = font(400, 34)
-  g.fillText(`${data.mode} · 평균 100, 표준편차 15 기준`, W / 2, 450)
+  if (data.type_name) { g.fillStyle = P; g.font = font(700, 38); g.fillText(data.type_name, W / 2, 452) }
+  g.fillStyle = "#6b7280"; g.font = font(400, 30)
+  g.fillText(`${data.mode} · 평균 100, 표준편차 15 기준`, W / 2, data.type_name ? 500 : 450)
 
-  const cx = W / 2, cy = 870, R = 290, lo = 55, hi = 145
+  const cx = W / 2, cy = 900, R = 270, lo = 55, hi = 145
   const n = data.domains.length
   const pt = (i, v) => {
     const a = -Math.PI / 2 + (2 * Math.PI * i) / n
@@ -310,7 +311,8 @@ export default function (component) {
 )
 
 
-def result_card(index: float, position: str, level: str, mode: str, date: str, domains: list[dict]) -> None:
-    """domains: [{"label": "감정 인식", "index": 108.2}, ...]"""
+def result_card(index: float, position: str, level: str, mode: str, date: str, domains: list[dict],
+                type_name: str = "") -> None:
+    """domains: [{"label": "감정 인식", "index": 108.2}, ...], type_name: 종합 유형 이름"""
     _CARD(key="result-card", data={"index": index, "position": position, "level": level, "mode": mode, "date": date,
-                                   "domains": domains})
+                                   "domains": domains, "type_name": type_name})

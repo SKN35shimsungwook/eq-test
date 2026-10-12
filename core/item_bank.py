@@ -43,14 +43,16 @@ def balance_answer_positions(items: list[Item]) -> list[Item]:
             if it.format is ItemFormat.MCQ:
                 rest = [i for i in range(len(it.choices)) if i != best]
                 perm = rest[:target] + [best] + rest[target:]  # 새 위치 → 원래 인덱스
-                out.append(replace(it, choices=[it.choices[i] for i in perm], answer=target))
+                out.append(replace(it, choices=[it.choices[i] for i in perm], answer=target,
+                                   styles=[it.styles[i] for i in perm] if it.styles else []))
                 continue
             worst = it.answer[1]
             free = [p for p in range(4) if p != target]
             worst_at = free[(k + h) % 3]  # 최악 보기도 슬롯 안에서 자리를 돌린다
             others = iter(i for i in range(4) if i not in (best, worst))
             perm = [best if p == target else worst if p == worst_at else next(others) for p in range(4)]
-            out.append(replace(it, choices=[it.choices[i] for i in perm], answer=[target, worst_at]))
+            out.append(replace(it, choices=[it.choices[i] for i in perm], answer=[target, worst_at],
+                               styles=[it.styles[i] for i in perm] if it.styles else []))
     return out
 
 
@@ -119,9 +121,9 @@ def validate_bank(items: list[Item], strict: bool = False, images_dir: Path = IM
                 errors.append(f"[{slot_id}] 동형 {by_slot[slot_id]}개 / 필요 {need}개{tag}")
         errors += _substitute_capacity(items)
         pool = Counter(it.domain for it in items)
-        for domain in Domain:
-            if pool[domain] < MIN_DOMAIN_POOL:
-                errors.append(f"[{domain.value}] 문항 풀 {pool[domain]}개 / 필요 {MIN_DOMAIN_POOL}개")
+        for domain, spec in BLUEPRINT.items():
+            if pool[domain] < spec.min_pool:
+                errors.append(f"[{domain.value}] 문항 풀 {pool[domain]}개 / 필요 {spec.min_pool}개")
     return errors
 
 
@@ -161,15 +163,15 @@ def validate_self_items(items: list[SelfItem], strict: bool = False) -> list[str
 def validate_blueprint() -> list[str]:
     """구성표 규칙.
 
-    - 영역마다 유형 4개, 고정 구성의 슬롯은 모두 영역 풀에 있고 쉬운 문제부터 놓인다
+    - 영역마다 유형 4~5개, 고정 구성의 슬롯은 모두 영역 풀에 있고 쉬운 문제부터 놓인다
     - 정밀: 8문항, 난이도 1·2·2·2·3·3·3·4, 같은 유형 최대 MAX_SAME_TYPE번
     - 빠른: 정밀 구성의 부분집합, 난이도 1~4 하나씩, 모두 다른 유형
     """
     errors = []
     for domain, spec in BLUEPRINT.items():
         tag = f"[{domain.value}]"
-        if len(spec.subtypes) != 4:
-            errors.append(f"{tag} 유형 {len(spec.subtypes)}개 (4개 필요)")
+        if not 4 <= len(spec.subtypes) <= 5:
+            errors.append(f"{tag} 유형 {len(spec.subtypes)}개 (4~5개)")
         if not all(s.startswith(domain.value + "-") for s in spec.full + spec.quick):
             errors.append(f"{tag} 다른 영역 슬롯이 섞임")
         for mode in Mode:
@@ -247,3 +249,28 @@ def build_form(items: list[Item], seed: int, mode: Mode = Mode.FULL,
         if picked:
             form[domain] = picked
     return form
+
+
+# ---------------------------------------------------------------- 문항 품질 점검 (경고)
+
+# 오답이 '나쁜 행동'이면 감정 능력이 아니라 예의·상식으로 풀린다 → 보기는 모두 괜찮은 행동·감정이어야 한다
+OBVIOUS_WRONG = ("화를 내", "화를 낸", "소리를 지르", "소리친", "소리를 질", "욕을", "욕한", "무시한", "복수", "때리",
+                 "던지", "험담", "비꼬", "따진다", "따지", "모른 척", "못 들은 척", "거짓말", "정색", "핀잔", "고함")
+
+
+def lint_items(items: list[Item]) -> list[str]:
+    """출제 품질 경고: (1) 오답에 뻔히 나쁜 행동이 있음 (2) 정답 보기만 유독 김 (길이로 정답이 드러남)."""
+    warnings = []
+    for it in items:
+        key = it.answer if it.format is ItemFormat.MCQ else it.answer[0]
+        worst = None if it.format is ItemFormat.MCQ else it.answer[1]
+        for i, c in enumerate(it.choices):
+            if i == key:
+                continue
+            hits = [w for w in OBVIOUS_WRONG if w in c]
+            if hits and i != worst:
+                warnings.append(f"[{it.id}] 오답 {'ABCD'[i]}에 뻔한 나쁜 행동 표현: {', '.join(hits)}")
+        others = [len(c) for i, c in enumerate(it.choices) if i != key]
+        if len(it.choices[key]) > 1.4 * max(others) and len(it.choices[key]) - max(others) >= 8:
+            warnings.append(f"[{it.id}] 정답 보기만 유독 김 ({len(it.choices[key])}자 vs 최대 {max(others)}자)")
+    return warnings

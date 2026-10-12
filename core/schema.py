@@ -1,6 +1,6 @@
 """문항 스키마와 검사 구성(영역·유형·문항 수·제한시간) 정의.
 
-구조는 iq-test와 같다: 영역마다 4유형 × 4난이도 = 16슬롯, 정밀은 8슬롯 · 빠른은 4슬롯 고정 구성,
+구조는 iq-test와 같다: 영역마다 4~5유형 × 4난이도 슬롯, 정밀은 8슬롯 · 빠른은 4슬롯 고정 구성,
 1·2·3차는 같은 구성에 겹치지 않는 동형 문항, 3차 뒤 심층검사는 영역의 모든 슬롯에서 맞춤 출제.
 """
 
@@ -17,6 +17,7 @@ class Domain(str, Enum):
     USE = "use"  # 감정 활용
     REG = "reg"  # 감정 조절
     REL = "rel"  # 대인관계·공감
+    CON = "con"  # 관계 갈등 (배신·소외·가족·연애·새 환경 적응)
     CRI = "cri"  # 위기 대처
     CTX = "ctx"  # 맥락 파악
 
@@ -39,7 +40,7 @@ MAX_SAME_TYPE = 2   # 한 검사지·한 영역 안에서 같은 유형 최대 �
 # 동형 문항 수: 문항을 직접 쓰므로 1·2·3차가 겹치지 않는 최소량으로 정한다
 MIN_FORMS_FIXED = 3  # 고정 구성(정밀·빠른)에 들어가는 슬롯: 1·2·3차에 하나씩
 MIN_FORMS_POOL = 2   # 나머지 슬롯: 심층검사용
-MIN_DOMAIN_POOL = 40  # 8 × 3 + 8 × 2
+MIN_DOMAIN_POOL = 40  # 4유형 영역 기준 8 × 3 + 8 × 2 (5유형 영역은 DomainSpec.min_pool)
 
 # 심층검사 종료 조건 (iq-test 시뮬레이션 기준값, EQ 문항으로 다시 시뮬레이션해 조정)
 DEEP_TARGET_SE = 0.33
@@ -92,6 +93,12 @@ class DomainSpec:
     def _code(self) -> str:
         return self.full[0].split("-")[0]
 
+    @property
+    def min_pool(self) -> int:
+        """1·2·3차 고정 슬롯은 동형 3개, 나머지 슬롯은 2개."""
+        fixed = set(self.full) | set(self.quick)
+        return sum(MIN_FORMS_FIXED if s in fixed else MIN_FORMS_POOL for s in self.pool)
+
 
 def _ids(d: str, text: str) -> tuple[str, ...]:
     """"cause1 blend3" 같은 짧은 표기를 슬롯 ID로 바꾼다."""
@@ -133,6 +140,13 @@ BLUEPRINT: dict[Domain, DomainSpec] = {
         full=_ids("rel", "comfort1 conflict2 feedback2 boundary2 comfort3 conflict3 feedback3 boundary4"),
         quick=_ids("rel", "comfort1 feedback2 conflict3 boundary4"),
         time_full=5 * 60, time_quick=150),
+    Domain.CON: DomainSpec(
+        "관계 갈등",
+        {"adapt": "새 환경 적응", "betrayal": "배신·신뢰 깨짐", "exclusion": "소외", "family": "가족 갈등",
+         "romance": "연애 갈등"},
+        full=_ids("con", "adapt1 betrayal2 family2 romance2 exclusion3 betrayal3 family3 romance4"),
+        quick=_ids("con", "adapt1 family2 exclusion3 romance4"),
+        time_full=5 * 60, time_quick=150),
     Domain.CRI: DomainSpec(
         "위기 대처",
         {"escalation": "폭발 직전의 상대", "emergency": "돌발 사고", "public": "여럿 앞의 압박",
@@ -147,6 +161,73 @@ BLUEPRINT: dict[Domain, DomainSpec] = {
         quick=_ids("ctx", "sarcasm1 indirect2 atmosphere3 unspoken4"),
         time_full=5 * 60, time_quick=150),
 }
+
+
+# ---------------------------------------------------------------- 선택 유형 (보기마다 붙는 대처·해석 방식)
+#
+# 보기 4개가 모두 '괜찮은' 반응이 되도록 쓰고, 보기마다 어떤 방식인지 표시한다. 정답과 별개로
+# 무엇을 골랐는지 모아 영역별 유형과 종합 프로필을 만든다 (core/style.py).
+# 행동 영역의 유형은 세 축에 점수를 준다: A 감정 중심(+)↔문제 중심(−), B 다가감(+)↔거리 둠(−), C 표현(+)↔절제(−)
+# 해석 영역(인식·이해·맥락)의 유형은 '잘못 읽을 때의 경향'이라 축에 넣지 않고 따로 보여 준다. acc = 정확한 해석.
+
+@dataclass(frozen=True)
+class StyleSpec:
+    name: str
+    desc: str
+    axes: tuple[int, int, int] = (0, 0, 0)
+
+
+STYLES: dict[Domain, dict[str, StyleSpec]] = {
+    Domain.PER: {
+        "acc": StyleSpec("정확형", "단서를 고르게 보고 감정을 정확히 읽는다"),
+        "pos": StyleSpec("좋게 읽는 형", "상대의 감정을 실제보다 밝게 읽는 편"),
+        "neg": StyleSpec("어둡게 읽는 형", "상대의 감정을 실제보다 무겁거나 부정적으로 읽는 편"),
+        "lit": StyleSpec("겉으로 읽는 형", "말이나 표정의 겉모습을 그대로 받아들이는 편"),
+    },
+    Domain.UND: {
+        "acc": StyleSpec("정확형", "감정이 생긴 원인과 세기를 정확히 짚는다"),
+        "over": StyleSpec("크게 읽는 형", "감정을 실제보다 강하거나 무겁게 보는 편"),
+        "under": StyleSpec("가볍게 읽는 형", "감정을 실제보다 약하거나 단순하게 보는 편"),
+        "shift": StyleSpec("원인을 달리 보는 형", "감정이 생긴 원인을 다른 데서 찾는 편"),
+    },
+    Domain.USE: {
+        "tune": StyleSpec("맞춤형", "할 일에 맞게 기분을 조절한다", (-1, 0, -1)),
+        "ride": StyleSpec("몰입형", "지금의 감정을 그대로 살려 쓴다", (1, 0, 1)),
+        "check": StyleSpec("점검형", "감정이 판단을 흐리지 않는지 먼저 의심한다", (-1, 0, -1)),
+        "drive": StyleSpec("동력형", "감정을 행동의 힘으로 바꾼다", (0, 0, 1)),
+    },
+    Domain.REG: {
+        "reframe": StyleSpec("관점전환형", "상황을 다르게 해석해 마음을 다스린다", (0, 0, -1)),
+        "express": StyleSpec("표현형", "털어놓거나 적으며 감정을 밖으로 낸다", (1, 1, 1)),
+        "pause": StyleSpec("거리두기형", "시간을 두거나 주의를 돌려 가라앉힌다", (0, -1, -1)),
+        "act": StyleSpec("행동형", "원인을 해결하거나 몸을 움직여 푼다", (-1, 0, 0)),
+    },
+    Domain.REL: {
+        "empath": StyleSpec("공감형", "상대의 감정을 먼저 받아 준다", (1, 1, 0)),
+        "solve": StyleSpec("해결형", "실질적인 도움과 해결책을 건넨다", (-1, 1, 0)),
+        "respect": StyleSpec("존중형", "상대의 속도와 선택을 존중하며 기다린다", (0, -1, -1)),
+        "honest": StyleSpec("솔직형", "내 생각과 마음을 분명히 말한다", (0, 1, 1)),
+    },
+    Domain.CON: {
+        "talk": StyleSpec("대화형", "당사자와 직접 이야기해 푼다", (0, 1, 1)),
+        "accept": StyleSpec("수용형", "상대 사정을 이해하고 너그럽게 넘긴다", (1, 1, -1)),
+        "guard": StyleSpec("경계형", "선을 긋고 나를 지킨다", (0, -1, 0)),
+        "bridge": StyleSpec("연결형", "다른 사람·관계망의 도움으로 푼다", (-1, 0, 0)),
+    },
+    Domain.CRI: {
+        "calm": StyleSpec("정리형", "멈추고 상황부터 파악한다", (-1, 0, -1)),
+        "act": StyleSpec("즉시행동형", "바로 움직여 조치한다", (-1, 0, 1)),
+        "ally": StyleSpec("협력형", "알리고 도움을 모은다", (0, 1, 1)),
+        "protect": StyleSpec("보호형", "사람의 마음과 안전부터 챙긴다", (1, 1, 0)),
+    },
+    Domain.CTX: {
+        "acc": StyleSpec("정확형", "말과 상황을 함께 보고 숨은 뜻을 정확히 읽는다"),
+        "lit": StyleSpec("겉말형", "말을 문자 그대로 받아들이는 편"),
+        "sus": StyleSpec("의심형", "없는 숨은 뜻까지 읽어 내는 편"),
+        "pos": StyleSpec("좋게 보는 형", "애매한 말을 좋은 쪽으로 해석하는 편"),
+    },
+}
+READING_DOMAINS = {Domain.PER, Domain.UND, Domain.CTX}  # 정확형(acc) + 잘못 읽는 경향
 
 
 def _slot(slot_id: str) -> SlotSpec:
@@ -173,6 +254,7 @@ class Item:
     rationale: str = ""      # 정답 근거 이론 (검토·관리용, 응시자에게는 안 보임)
     image: str = ""          # 이미지 문항: assets/images/ 아래 파일 이름
     time_limit: int = 0      # 문항 제한시간(초), 0이면 영역 제한시간
+    styles: list[str] = field(default_factory=list)  # 보기마다의 선택 유형 코드 (STYLES), 개념 문항은 비움
     expected_p: float = 0.5
     version: int = 1
     irt_a: float | None = None
@@ -233,6 +315,17 @@ class Item:
             errors.append("이미지 유형인데 image 없음")
         if self.domain is Domain.CRI and self.time_limit <= 0:
             errors.append("위기 대처 문항은 time_limit 필요")
+        if self.styles:
+            codes = STYLES.get(self.domain, {})
+            if len(self.styles) != len(self.choices):
+                errors.append(f"styles {len(self.styles)}개 (보기 수와 같아야 함)")
+            bad = [c for c in self.styles if c not in codes]
+            if bad:
+                errors.append(f"정의되지 않은 유형 {bad}")
+            if self.domain in READING_DOMAINS and self.styles:
+                key = self.answer if self.format is ItemFormat.MCQ else (self.answer[0] if isinstance(self.answer, list) else None)
+                if isinstance(key, int) and 0 <= key < len(self.styles) and self.styles[key] != "acc":
+                    errors.append("해석 영역의 정답 보기는 유형 acc여야 함")
         return errors
 
     def is_correct(self, response: Any) -> bool:

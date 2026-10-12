@@ -31,14 +31,14 @@ def test_blueprint_rules():
 
 
 def test_blueprint_shape():
-    assert len(BLUEPRINT) == 7
+    assert len(BLUEPRINT) == 8
     for spec in BLUEPRINT.values():
-        assert len(spec.pool) == 16
+        assert len(spec.pool) == 4 * len(spec.subtypes) and len(spec.subtypes) in (4, 5)
         assert len(spec.full) == 8 and len(spec.quick) == 4
-    # 고정 구성 슬롯 8 × 3 + 나머지 8 × 2 = 영역당 40
-    per_domain = 8 * MIN_FORMS_FIXED + 8 * MIN_FORMS_POOL
-    assert per_domain == MIN_DOMAIN_POOL
-    assert len(FIXED_SLOTS) == 7 * 8
+        # 고정 구성 슬롯 8 × 3 + 나머지 슬롯 × 2
+        assert spec.min_pool == 8 * MIN_FORMS_FIXED + (len(spec.pool) - 8) * MIN_FORMS_POOL
+    assert BLUEPRINT[Domain.UND].min_pool == MIN_DOMAIN_POOL and BLUEPRINT[Domain.CON].min_pool == 48
+    assert len(FIXED_SLOTS) == 8 * 8
 
 
 # ---------------------------------------------------------------- 문항
@@ -122,7 +122,7 @@ def test_rounds_do_not_overlap(mode):
     for r in range(3):
         form = build_form(bank, seed=100 + r, mode=mode, exclude=seen)
         ids = [it.id for items in form.values() for it in items]
-        assert len(ids) == len(set(ids)) == 7 * (8 if mode is Mode.FULL else 4)
+        assert len(ids) == len(set(ids)) == len(BLUEPRINT) * (8 if mode is Mode.FULL else 4)
         assert not seen & set(ids)
         seen |= set(ids)
 
@@ -195,7 +195,7 @@ def test_save_responses_idempotent(engine):
 @pytest.mark.parametrize("mode", list(Mode))
 def test_real_bank_three_rounds_never_overlap(mode):
     """실제 문항은행으로 1·2·3차를 겹치지 않게 낼 수 있다 (이미지 대기 중 대체 출제 포함)."""
-    n = 7 * (8 if mode is Mode.FULL else 4)
+    n = len(BLUEPRINT) * (8 if mode is Mode.FULL else 4)
     for seed in range(200):
         seen = set()
         for r in range(3):

@@ -4,7 +4,7 @@ import streamlit as st
 
 from core import db
 from core.components import client_id
-from core.runtime import APP_VERSION, get_engine
+from core.runtime import APP_VERSION, get_engine, get_self_items
 from core.schema import BLUEPRINT, MODE_LABELS, Mode
 
 
@@ -15,7 +15,7 @@ def fmt_time(sec: int) -> str:
 
 
 st.title("EQ 감성지수 테스트")
-st.caption("감정을 알아차리고, 이해하고, 활용하고, 다루는 힘을 7개 영역에서 측정하는 온라인 정서 역량 테스트")
+st.caption(f"감정을 알아차리고, 이해하고, 활용하고, 다루는 힘을 {len(BLUEPRINT)}개 영역에서 측정하는 온라인 정서 역량 테스트")
 
 mode = st.segmented_control("검사 방식", options=list(Mode), format_func=MODE_LABELS.get, default=Mode.FULL,
                             key="mode_choice")
@@ -31,8 +31,9 @@ with st.container(border=True):
         "문항": [f"{len(spec.form_for(mode))}문항" for spec in BLUEPRINT.values()],
         "제한시간": [fmt_time(spec.time_for(mode)) for spec in BLUEPRINT.values()],
     })
-    st.caption("시작 전에 '나는 어떤 사람인지' 묻는 자기평가 32문항(약 4분)이 있습니다. "
-               "문제는 모두 정답이 있는 상황 판단 문제이고, 어려운 문제는 가장 맞는 보기와 가장 거리가 먼 보기를 함께 고릅니다.")
+    st.caption(f"시작 전에 '나는 어떤 사람인지' 묻는 자기평가 {len(get_self_items())}문항(약 4분)이 있습니다. "
+               "문제는 모두 정답이 있는 상황 판단 문제이고, 어려운 문제는 가장 맞는 보기와 가장 거리가 먼 보기를 함께 고릅니다. "
+               "점수와 함께, 무엇을 골랐는지로 나의 정서 유형(세 가지 축 + 조합 이름)도 알려 드립니다.")
 
 st.warning("본 결과는 온라인 정서 역량 테스트의 결과이며, 표준화된 전문 심리검사를 대체하지 않습니다.",
            icon=":material/info:")

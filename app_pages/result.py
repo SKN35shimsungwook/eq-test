@@ -8,6 +8,7 @@ from core import components as ui
 from core import exam as ex
 from core import report as rp
 from core import scoring as sc
+from core import style as sty
 from core.runtime import APP_VERSION, get_engine, get_items
 from core.schema import (BLUEPRINT, DEEP_MAX_ITEMS, DEEP_MIN_ITEMS, DEEP_ROUND, DEEP_TARGET_SE, DIFFICULTY_LABELS,
                          MAX_ROUNDS, MODE_LABELS, Domain, ItemFormat, Mode, round_label)
@@ -148,6 +149,32 @@ def tips_section(rep: rp.RoundReport) -> None:
                 st.markdown(f"- {tip}")
 
 
+def style_section() -> None:
+    """선택 유형: 무엇을 골랐는지로 본 영역별 유형과 종합 프로필 (점수와 별개)."""
+    prof = sty.profile(all_rows, items)
+    if not prof.domains:
+        return
+    st.markdown("**나의 정서 유형**")
+    with st.container(border=True):
+        st.markdown(f"### {prof.name}")
+        st.caption(f"정답 여부와 별개로, 문제마다 어떤 방식을 골랐는지 {sum(d.n for d in prof.domains)}번의 선택을 모아 정한 유형입니다. "
+                   "정해진 몇 가지 칸이 아니라, 세 가지 축의 기울기와 가장 많이 고른 방식을 조합한 이름입니다.")
+        st.altair_chart(charts.axes_chart([{"축": k, "왼쪽": neg, "오른쪽": pos, "값": prof.axes[k]}
+                                           for k, pos, neg, *_ in sty.AXES]))
+        st.caption("막대는 가운데에서 어느 쪽으로 얼마나 기울었는지를 보여 줍니다 (감정을 다루는 영역 5개의 선택 기준).")
+        if prof.reading:
+            st.markdown(f":material/visibility: {prof.reading}")
+        for a in prof.advice:
+            st.markdown(f"- {a}")
+    cols = st.columns(2)
+    for k, d in enumerate(prof.domains):
+        with cols[k % 2].container(border=True):
+            st.markdown(f"**{d.label}** · {d.name}")
+            st.caption(d.desc)
+    if mode is Mode.QUICK:
+        st.caption("빠른 검사는 영역마다 선택이 4개뿐이라 영역 유형은 참고로만 보세요. 정밀 검사나 2·3차 검증을 더 하면 유형이 또렷해집니다.")
+
+
 def self_section() -> None:
     if not self_scores:
         return
@@ -268,6 +295,7 @@ def final_tab() -> None:
     st.markdown("**영역별 최종 결과** (모든 차수 합산)")
     domain_section(final, quick_note=False)
     strengths_section(final)
+    style_section()
     self_section()
     st.markdown("**이렇게 키워 보세요**")
     tips_section(final)
@@ -285,7 +313,8 @@ def final_tab() -> None:
     }, hide_index=True)
     st.markdown("**결과 카드**")
     ui.result_card(s.index, pct_text(s.pct), sc.level(s.index), f"{MODE_LABELS[mode]} · {used}",
-                   f"{date.today():%Y.%m.%d}", [{"label": d.label, "index": d.score.index} for d in final.domains])
+                   f"{date.today():%Y.%m.%d}", [{"label": d.label, "index": d.score.index} for d in final.domains],
+                   type_name=sty.profile(all_rows, items).name)
 
 
 # ---------------------------------------------------------------- 탭

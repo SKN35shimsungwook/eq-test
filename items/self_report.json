@@ -24,6 +24,11 @@
   {"id": "sr-rel-3", "domain": "rel", "text": "부탁을 거절하기가 너무 어려워 원하지 않는 일도 떠맡곤 한다.", "reverse": true},
   {"id": "sr-rel-4", "domain": "rel", "text": "의견이 달라도 상대 입장에서 생각해 보려고 노력한다."},
 
+  {"id": "sr-con-1", "domain": "con", "text": "믿었던 사람에게 실망해도 관계를 회복할 방법을 찾는 편이다."},
+  {"id": "sr-con-2", "domain": "con", "text": "가족이나 연인과 다툰 뒤에도 차분히 다시 이야기를 꺼낼 수 있다."},
+  {"id": "sr-con-3", "domain": "con", "text": "모임에서 소외감을 느끼면 그냥 혼자 속으로 삭이고 만다.", "reverse": true},
+  {"id": "sr-con-4", "domain": "con", "text": "새로운 환경에서도 비교적 빨리 사람들과 어울린다."},
+
   {"id": "sr-cri-1", "domain": "cri", "text": "갑자기 일이 터져도 당황하지 않고 먼저 할 일을 찾는다."},
   {"id": "sr-cri-2", "domain": "cri", "text": "급박한 상황이 되면 머리가 하얘져 아무것도 하지 못한다.", "reverse": true},
   {"id": "sr-cri-3", "domain": "cri", "text": "흥분한 사람을 진정시키는 데 자신이 있다."},

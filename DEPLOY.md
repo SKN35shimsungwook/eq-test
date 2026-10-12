@@ -6,7 +6,7 @@
 
 - DB 계층은 iq-test에서 실제 Postgres(PGlite)로 검증한 코드를 그대로 씀 (`scripts/check_db.py`로 같은 점검 가능)
 - 테이블 생성 시 RLS를 자동으로 켬 → Supabase REST API(anon 키)로는 응시 데이터를 읽거나 쓸 수 없음
-- 로컬(SQLite)에서 빠른 검사 전 과정(자기평가 → 7개 영역 → 결과) 확인
+- 로컬(SQLite)에서 빠른 검사 전 과정(자기평가 → 8개 영역 → 결과, 결과의 정서 유형까지) 확인
 
 ## ① Supabase 프로젝트 만들기
 

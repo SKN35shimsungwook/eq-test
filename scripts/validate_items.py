@@ -1,6 +1,6 @@
 """문항은행 검증: python scripts/validate_items.py [--strict]
 
-기본: 문항 형식·중복·이미지 파일 확인. --strict: 슬롯별 동형 수, 영역 문항 풀, 자기보고 구성까지 (출시 전 기준).
+기본: 문항 형식·중복·이미지 파일 확인 + 출제 품질 경고(오답이 뻔한 나쁜 행동, 정답만 유독 긴 보기). --strict: 슬롯별 동형 수, 영역 문항 풀, 자기보고 구성까지 (출시 전 기준).
 """
 
 from __future__ import annotations
@@ -13,7 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from core.item_bank import load_items, load_self_items, validate_blueprint, validate_bank, validate_self_items  # noqa: E402
+from core.item_bank import (lint_items, load_items, load_self_items, validate_blueprint, validate_bank,  # noqa: E402
+                            validate_self_items)
 from core.schema import BLUEPRINT  # noqa: E402
 
 
@@ -30,6 +31,11 @@ def main() -> int:
     print(f"문항 {len(items)}개 · 자기평가 {len(self_items)}개")
     for domain, spec in BLUEPRINT.items():
         print(f"  {spec.label:<8} {counts[domain]:>3}개")
+    warnings = lint_items(items)
+    if warnings:
+        print(f"\n주의 {len(warnings)}건 (착한 답·보기 길이로 정답이 드러날 수 있음)")
+        for w in warnings:
+            print(" ", w)
     if errors:
         print(f"\n오류 {len(errors)}건")
         for e in errors:

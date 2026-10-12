@@ -12,7 +12,7 @@ from core import db
 from core.charts import PRIMARY
 from core.item_bank import validate_bank, validate_self_items
 from core.runtime import get_engine, get_items, get_self_items
-from core.schema import (BLUEPRINT, DEEP_MAX_ITEMS, DEEP_MIN_ITEMS, DEEP_TARGET_SE, FIXED_SLOTS, MIN_DOMAIN_POOL,
+from core.schema import (BLUEPRINT, DEEP_MAX_ITEMS, DEEP_MIN_ITEMS, DEEP_TARGET_SE, FIXED_SLOTS,
                          MIN_FORMS_FIXED, MIN_FORMS_POOL, MODE_LABELS, SLOTS, Mode)
 
 st.set_page_config(layout="wide")  # 분석 표가 넓어 이 페이지만 넓게
@@ -76,7 +76,7 @@ def bank_status() -> None:
     for spec in BLUEPRINT.values():
         need = sum(MIN_FORMS_FIXED if s in FIXED_SLOTS else MIN_FORMS_POOL for s in spec.pool)
         have = sum(min(by_slot[s], MIN_FORMS_FIXED if s in FIXED_SLOTS else MIN_FORMS_POOL) for s in spec.pool)
-        rows.append({"영역": spec.label, "문항": sum(by_slot[s] for s in spec.pool), "목표": MIN_DOMAIN_POOL,
+        rows.append({"영역": spec.label, "문항": sum(by_slot[s] for s in spec.pool), "목표": spec.min_pool,
                      "채운 슬롯 비율": have / need, "빈 슬롯": sum(1 for s in spec.pool if not by_slot[s])})
     st.dataframe(rows, hide_index=True, column_config={
         "채운 슬롯 비율": st.column_config.ProgressColumn(min_value=0, max_value=1, format="percent")})
