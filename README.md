@@ -3,9 +3,10 @@
 감정을 알아차리고, 이해하고, 활용하고, 다루는 힘을 8개 영역에서 측정하는 Streamlit 앱입니다.
 정답이 있는 **상황 판단 검사**로 EQ(평균 100, 표준편차 15)를 내고, 시작 전 **자기평가**와 비교해
 "내가 보는 나 vs 실제 수행"을 보여 줍니다.
-무엇을 골랐는지로 **나의 정서 유형**(세 축 점수 + 조합 이름)도 함께 알려 줍니다. 구조는 자매 프로젝트 [iq-test](https://github.com/SKN35shimsungwook/iq-test)와 같습니다.
+판단이 애매할 때 어느 쪽으로 기우는지로 **나의 정서 유형**(세 축 점수 + 조합 이름)을, 마지막 질문과 응답 패턴으로
+**응답 신뢰도**를 함께 알려 줍니다. 구조는 자매 프로젝트 [iq-test](https://github.com/SKN35shimsungwook/iq-test)와 같습니다.
 
-**자세한 문서는 [docs/](docs/README.md)에 있습니다** — 연구 정리, 개발 과정, 응시자·운영자·개발자 가이드, 검증 기록, 채점 원리, 이미지 문항 제작, 유형 판정.
+**자세한 문서는 [docs/](docs/README.md)에 있습니다** — 연구 정리, 개발 과정, 응시자·운영자·개발자 가이드, 검증 기록, 채점 원리, 이미지 문항 제작, 유형 판정, 응답 신뢰도.
 
 > 온라인 정서 역량 테스트이며, 표준화된 전문 심리검사를 대체하지 않습니다.
 
@@ -32,19 +33,46 @@
 
 - **응답 형식**: 쉬움·보통은 4지선다, 어려움·매우 어려움은 **✓ 가장 맞음**과 **✗ 가장 아님**을 함께 골라 둘 다 맞아야 정답
 - **자기평가**: 1차 전 한 번, 영역당 4문항(역문항 포함) + 응답 점검 4문항. EQ 점수에는 섞지 않음
+- **마지막 질문**: 1차 끝에 한 번, 욕구 부정 4 + 시작 자기평가를 반대로 다시 묻기 4. EQ 점수에는 섞지 않음
 - **1·2·3차 검증**: 같은 구성, 겹치지 않는 새 문제. 3차 뒤 **심층검사**(실력에 맞춘 맞춤형 출제)
 - **점수**: 3PL IRT + EAP → EQ. 실제 첫 응시 100명 전에는 봇 2만 명(모드별) 시뮬레이션 규준
-- **결과**: EQ·90% 범위·상위 %·수준, 차수별 탭, 영역 프로필, 강점, **정서 유형**, 자기평가 비교, 키우는 방법, 결과 카드
+- **결과**: 응답 신뢰도, EQ·90% 범위·상위 %·수준, 차수별 탭, 영역 프로필, 강점, **정서 유형**, 자기평가 비교, 키우는 방법, 결과 카드
 - **문항 원칙**: 네 보기 모두 그럴듯하고, 상황 속 단서 하나가 정답을 가른다 (오답 = 조금 다른 상황이었다면 정답)
+
+## 검증 항목
+
+실제 응시자 데이터가 쌓이기 전이라, 능력이나 응답 방식을 **미리 정해 둔 봇**이 실제 출제 로직으로 검사를 풀게 해서
+"알고 있는 정답을 프로그램이 되찾는가"로 검증했습니다. 모든 수치는 봇 기준이며 실제 응답으로 다시 확인해야 합니다.
+
+| 검증 | 방법 | 핵심 결과 | 보고서 |
+|---|---|---|---|
+| **EQ 점수 정확도** | 능력을 정한 봇 2만 명 × 2모드가 1·2·3차 + 심층검사 | 참값과의 오차 빠른 1차 ±5.1점 → 심층까지 ±2.4점, 90% 범위 적중 90.0~90.5% | [06](docs/06_검증기록.md) · [07](docs/07_채점_원리.md) |
+| **문항 문제 탐지** (관리자 분석) | 난이도를 틀어 놓은 문항 12개 + 정답 키 오류 6개를 심은 가상 응시 600명 | 응답 30개 이상인 문항 중 난이도 11/11, 정답 키 오류 5/5 탐지 | [06](docs/06_검증기록.md) |
+| **검사지 구성** | 검사지 6,000개 생성 | 1·2·3차 문항 겹침 0건, 정답 위치 A~D 고르게 | [06](docs/06_검증기록.md) |
+| **문항 품질** | 자동 점검(lint) | 뻔한 오답·정답만 긴 보기 0건 | [09](docs/09_유형_판정.md) |
+| **정서 유형 판정** | 참 성향을 심은 봇 3만 명 × 2모드 | 같은 응답 → 같은 결과 100%, 표시된 이름의 방향 정확도 96~99%, 영역 기우는 방향 정확도 91~99.9%, 버릇 없는 사람에게 거짓 유형 1~6% (능력과 무관) | [09](docs/09_유형_판정.md) |
+| **응답 신뢰도** (마지막 질문) | 7가지 응답 방식 봇 21,000명 × 2모드 | 성실한 사람 오경보 1.4~2.3%, 무작위·몰아 찍기 탐지 99.9~100%, 강한 꾸밈 탐지 50% (경고 84~85%) | [10](docs/10_응답_신뢰도_검증.md) |
+| **화면 동작** | Streamlit AppTest (브라우저 전 과정 확인은 7개 영역 때) | 관계 갈등 안내, 마지막 질문 표시·제출·저장, 결과 화면(빠른·정밀) 예외 없음 | [06](docs/06_검증기록.md) · [10](docs/10_응답_신뢰도_검증.md) |
+| **자동 테스트** | pytest | 51개 통과 | — |
+
+검증을 다시 돌리는 명령:
+
+```bash
+python -m pytest -q
+python scripts/build_sim_norms.py --n 20000 --workers 8
+python scripts/simulate_styles.py --n 30000 --workers 8
+python scripts/simulate_validity.py --n 21000 --workers 8
+```
+
+**아직 검증하지 못한 것**: 실제 사람의 응답(문항 난이도·정답 키·유형 기준·신뢰도 기준), 다른 EQ 검사와의 상관, 이미지 문항.
 
 ## 현재 상태
 
 | 항목 | 상태 |
 |---|---|
-| 문항 | 315개 + 자기평가 36개 (감정 인식의 얼굴·풍경 **이미지 20장 대기**, 그동안 같은 난이도 글 문항으로 대체 출제) |
+| 문항 | 315개 + 자기평가 36개 + 마지막 질문 8개 (감정 인식의 얼굴·풍경 **이미지 20장 대기**, 그동안 같은 난이도 글 문항으로 대체 출제) |
 | 검사·결과·관리자 화면 | 완료 |
 | 시뮬레이션 규준 | `norms/sim_norms.json` (모드별 2만 명) |
-| 테스트 | 39개 통과 |
 | 배포 | [DEPLOY.md](DEPLOY.md) 절차 대기 |
 
 ## 실행
@@ -52,11 +80,9 @@
 ```bash
 pip install -r requirements-dev.txt
 streamlit run streamlit_app.py
-python -m pytest -q
 python scripts/validate_items.py --strict     # 문항 검증 (출시 기준)
 python scripts/render_review.py               # 문항 검토 화면 → review/items_review.html
 python scripts/simulate.py --n 600            # 가상 응시 데이터 (관리자 화면 확인용, 로컬)
-python scripts/build_sim_norms.py --n 20000 --workers 8   # 시뮬레이션 규준 다시 만들기
 ```
 
 관리자 페이지를 쓰려면 `.streamlit/secrets.toml.example`을 `secrets.toml`로 복사해 `admin_password`를 정합니다.
@@ -67,11 +93,12 @@ Supabase를 연결하지 않으면 `data/eq_test.db`(SQLite)에 저장됩니다.
 ```
 streamlit_app.py      내비게이션
 app_pages/            시작 · 검사 · 결과 · 관리자 분석
-core/                 schema, item_bank, exam, scoring, report, style(유형), charts, components, analysis, db, runtime
-items/                영역별 문항 JSON, self_report.json
+core/                 schema, item_bank, exam, scoring, report, style(유형), validity(응답 신뢰도),
+                      charts, components, analysis, db, runtime
+items/                영역별 문항 JSON, self_report.json, final_check.json
 norms/                시뮬레이션 규준표
 scripts/              items_<영역>.py(문항 작성), validate_items, render_review, simulate, build_sim_norms,
-                      plot_norm_curves, check_db
+                      simulate_styles, simulate_validity, plot_norm_curves, check_db
 docs/                 문서
 tests/                pytest
 ```
